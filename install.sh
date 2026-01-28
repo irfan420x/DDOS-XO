@@ -1,11 +1,11 @@
 #!/bin/bash
-# WORMGPT KALI LINUX AUTO INSTALLER
+# WORMGPT KALI LINUX AUTO INSTALLER - FIXED VERSION
 # Run: sudo ./install.sh
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║           WORMGPT KALI NUCLEAR INSTALLER v5.0           ║"
-echo "║              ALL-IN-ONE ATTACK SOLUTION                 ║
+echo "║              ALL-IN-ONE ATTACK SOLUTION                 ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 
@@ -77,13 +77,13 @@ EOF
 
 echo -e "${GREEN}[+] Phase 6: Creating Attack Directory${NC}"
 mkdir -p /opt/wormgpt
-cp wormgpt_main.py /opt/wormgpt/
-cp config.json /opt/wormgpt/
-cp requirements.txt /opt/wormgpt/
-chmod +x /opt/wormgpt/wormgpt_main.py
+cp wormgpt_main.py /opt/wormgpt/ 2>/dev/null || true
+cp config.json /opt/wormgpt/ 2>/dev/null || true
+cp requirements.txt /opt/wormgpt/ 2>/dev/null || true
+chmod +x /opt/wormgpt/wormgpt_main.py 2>/dev/null || true
 
 echo -e "${GREEN}[+] Phase 7: Creating Desktop Shortcut${NC}"
-cat > /usr/share/applications/wormgpt.desktop << 'EOF'
+cat > /usr/share/applications/wormgpt.desktop << EOF
 [Desktop Entry]
 Name=WORMGPT Nuclear
 Comment=All-in-One DDoS Attack Tool
@@ -100,13 +100,13 @@ echo "alias wormstart='systemctl start tor && proxychains python3 /opt/wormgpt/w
 echo "alias wormstop='pkill -f wormgpt && systemctl stop tor'" >> ~/.bashrc
 
 echo -e "${GREEN}[+] Phase 9: Downloading Resources${NC}"
-cd /opt/wormgpt
-wget -q https://raw.githubusercontent.com/ultrafunkamsterdam/undetected-chromedriver/master/undetected_chromedriver/__init__.py
-wget -q https://raw.githubusercontent.com/Anorov/cloudflare-scrape/master/cfscrape/__init__.py
+cd /opt/wormgpt 2>/dev/null || mkdir -p /opt/wormgpt && cd /opt/wormgpt
+wget -q https://raw.githubusercontent.com/ultrafunkamsterdam/undetected-chromedriver/master/undetected_chromedriver/__init__.py 2>/dev/null || true
+wget -q https://raw.githubusercontent.com/Anorov/cloudflare-scrape/master/cfscrape/__init__.py 2>/dev/null || true
 
 echo -e "${GREEN}[+] Phase 10: Final Setup${NC}"
-chmod +x /opt/wormgpt/wormgpt_main.py
-chmod +x /usr/share/applications/wormgpt.desktop
+chmod +x /opt/wormgpt/wormgpt_main.py 2>/dev/null || true
+chmod +x /usr/share/applications/wormgpt.desktop 2>/dev/null || true
 
 echo ""
 echo -e "${YELLOW}╔══════════════════════════════════════════════════════════╗${NC}"
