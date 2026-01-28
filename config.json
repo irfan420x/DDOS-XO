@@ -1,0 +1,83 @@
+{
+  "attack_settings": {
+    "max_threads": 10000,
+    "request_timeout": 10,
+    "proxy_rotation": true,
+    "tor_integration": true,
+    "user_agent_rotation": true,
+    "attack_duration": "infinite",
+    "auto_restart": true
+  },
+  
+  "attack_vectors": {
+    "http_flood": {
+      "enabled": true,
+      "threads": 3000,
+      "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "endpoints": ["/", "/api", "/wp-admin", "/admin", "/login", "/graphql"]
+    },
+    
+    "slowloris": {
+      "enabled": true,
+      "connections": 1000,
+      "keep_alive": true,
+      "send_interval": 15
+    },
+    
+    "cloudflare_bypass": {
+      "enabled": true,
+      "use_cloudscraper": true,
+      "solve_js_challenge": true,
+      "delay": 5
+    },
+    
+    "ssl_exhaustion": {
+      "enabled": true,
+      "renegotiations": 100,
+      "delay": 0.1
+    },
+    
+    "websocket_flood": {
+      "enabled": true,
+      "connections": 500,
+      "payload_size": 65536
+    }
+  },
+  
+  "bypass_techniques": {
+    "waf_evasion": {
+      "header_manipulation": true,
+      "ip_rotation": true,
+      "request_randomization": true,
+      "protocol_switching": true
+    },
+    
+    "captcha_solving": {
+      "2captcha_api": "6LcJ8w8TAAAAAM5C5eZzH8ZzH8ZzH8ZzH8ZzH8Zz",
+      "anticaptcha_api": "e111a28b9c5f8b9c5f8b9c5f8b9c5f8b9",
+      "auto_solve": true
+    },
+    
+    "rate_limit_bypass": {
+      "request_delay": "random",
+      "ip_rotation_frequency": 30,
+      "user_agent_pool": 1000
+    }
+  },
+  
+  "monitoring": {
+    "live_stats": true,
+    "update_interval": 1,
+    "log_attacks": true,
+    "save_results": true,
+    "show_progress": true
+  },
+  
+  "safety": {
+    "use_tor": true,
+    "use_proxies": true,
+    "max_requests_per_ip": 100,
+    "auto_stop_on_detection": false,
+    "clean_logs": true
+  }
+}
