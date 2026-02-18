@@ -22,7 +22,9 @@ permissions:
     - ":(){ :|:& };:"
 
 vision:
-  enabled: true # Enabled by default now
+  enabled: true
+  loop_enabled: true
+  loop_interval: 15
   emotion_detection: false
   ocr_engine: "tesseract"
 
@@ -40,6 +42,11 @@ gui:
 
 user:
   name: "IRFAN"
+  telegram_id: "7429947930"
+
+telegram:
+  enabled: true
+  token: "8140462013:AAEojO-aBUvetf8ERoWfs33jfa9IXq8OxeM"
 
 automation:
   timeout: 60

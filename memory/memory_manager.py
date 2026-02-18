@@ -1,20 +1,35 @@
+# Path: memory/memory_manager.py
 import json
 import os
-from typing import Dict, Any, List, Optional
-from datetime import datetime, timedelta
-from .vector_store import VectorStore
 import logging
+import chromadb
+from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional
+from .vector_store import VectorStore
 
 class MemoryManager:
     """
-    LUNA-ULTRA Memory System: 3-day rolling memory with vector store support for RAG.
+    LUNA-ULTRA Memory System: 3-day rolling memory with Infinite Long-Term Memory via ChromaDB.
     """
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.rolling_days = config.get("rolling_days", 3)
         self.memory_file = "memory/short_term_memory.json"
-        self.vector_store = VectorStore(config) # Initialize VectorStore
+        self.vector_store = VectorStore(config)
         self.memory_data = self.load_memory()
+        
+        # Infinite Memory Setup
+        self.db_path = "memory/vector_db"
+        if not os.path.exists(self.db_path):
+            os.makedirs(self.db_path)
+        try:
+            self.client = chromadb.PersistentClient(path=self.db_path)
+            self.collection = self.client.get_or_create_collection(name="infinite_memory")
+            logging.info("MemoryManager: Infinite Memory (ChromaDB) initialized.")
+        except Exception as e:
+            logging.error(f"MemoryManager: Failed to initialize ChromaDB: {e}")
+            self.collection = None
+
         self.cleanup_old_memory()
         logging.info("MemoryManager initialized.")
 
@@ -35,32 +50,49 @@ class MemoryManager:
             json.dump(self.memory_data, f, indent=4)
 
     def store_interaction(self, user_input: str, response: str, tags: List[str] = []):
+        timestamp = datetime.now().isoformat()
         entry = {
-            "timestamp": datetime.now().isoformat(),
+            "timestamp": timestamp,
             "user": user_input,
             "luna": response,
             "tags": tags
         }
+        # Rolling Memory
         self.memory_data.append(entry)
-        self.vector_store.add_entry(entry) # Add to vector store as well
         self.save_memory()
-        logging.debug(f"Stored interaction: {user_input}")
+        
+        # Original Vector Store (RAG)
+        self.vector_store.add_entry(entry)
+        
+        # Infinite Memory (ChromaDB)
+        if self.collection:
+            try:
+                content = f"User: {user_input}\nLUNA: {response}"
+                self.collection.add(
+                    documents=[content],
+                    metadatas=[{"timestamp": timestamp, "tags": ",".join(tags)}],
+                    ids=[f"mem_{int(datetime.now().timestamp())}"]
+                )
+            except Exception as e:
+                logging.error(f"MemoryManager: ChromaDB storage error: {e}")
 
     def get_context(self, current_input: str, limit: int = 5) -> str:
-        """
-        Retrieves context from both rolling memory and vector store.
-        """
         context_parts = []
-
-        # Get recent interactions from rolling memory
+        
+        # Recent interactions
         recent = self.memory_data[-limit:]
         for entry in recent:
             context_parts.append("User: {}\nLUNA: {}".format(entry.get("user", ""), entry.get("luna", "")))
         
-        # Get relevant entries from vector store (RAG simulation)
-        relevant_vector_entries = self.vector_store.get_relevant_entries(current_input, top_k=2)
-        for entry in relevant_vector_entries:
-            context_parts.append("Relevant Memory: User: {}\nLUNA: {}".format(entry.get("user", ""), entry.get("luna", "")))
+        # Infinite Memory Recall (ChromaDB)
+        if self.collection:
+            try:
+                results = self.collection.query(query_texts=[current_input], n_results=2)
+                if results['documents'] and results['documents'][0]:
+                    for doc in results['documents'][0]:
+                        context_parts.append(f"Past Memory Recall: {doc}")
+            except Exception as e:
+                logging.error(f"MemoryManager: Infinite recall failed: {e}")
 
         return "\n".join(context_parts)
 
@@ -71,4 +103,4 @@ class MemoryManager:
             if datetime.fromisoformat(entry["timestamp"]) > cutoff_date
         ]
         self.save_memory()
-        logging.info(f"Cleaned up old memory. Remaining entries: {len(self.memory_data)}")
+        logging.info(f"Cleaned up old memory. Remaining: {len(self.memory_data)}")

@@ -10,7 +10,9 @@ from memory.memory_manager import MemoryManager
 from core.orchestrator import Orchestrator
 from core.state_manager import StateManager
 from core.cognitive_mode import CognitiveMode
-from security.sandbox_executor import SandboxExecutor # Import SandboxExecutor
+from security.sandbox_executor import SandboxExecutor
+from automation.telegram_controller import TelegramController
+from vision.vision_loop import VisionLoop
 
 class LunaController:
     """
@@ -25,9 +27,28 @@ class LunaController:
         self.memory_manager = MemoryManager(self.config.get("memory", {}))
         self.state_manager = StateManager()
         self.cognitive_mode = CognitiveMode()
-        self.orchestrator = Orchestrator(self) # Orchestrator now takes controller
+        self.orchestrator = Orchestrator(self)
+        self.telegram = TelegramController(self.config, self)
+        self.vision_loop = VisionLoop(self)
         self.system_prompt = self.load_system_prompt()
         logging.info("LunaController initialized.")
+
+    async def start_services(self):
+        """Starts background services like Telegram Bot and Vision Loop."""
+        if self.telegram.enabled:
+            asyncio.create_task(self.telegram.run_bot())
+            await self.telegram.send_notification("System Online and Ready.")
+        
+        if self.vision_loop.enabled:
+            asyncio.create_task(self.vision_loop.start())
+
+    async def shutdown_services(self):
+        """Shuts down background services."""
+        if self.telegram.enabled:
+            await self.telegram.stop_bot()
+        
+        if self.vision_loop.running:
+            await self.vision_loop.stop()
 
     def load_config(self) -> Dict[str, Any]:
         try:
