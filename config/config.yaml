@@ -6,6 +6,8 @@ llm:
   api_keys:
     deepseek: "YOUR_DEEPSEEK_API_KEY"
     openai: "YOUR_OPENAI_API_KEY"
+    anthropic: "YOUR_ANTHROPIC_API_KEY"
+    gemini: "YOUR_GEMINI_API_KEY"
 
 permissions:
   level: SAFE
@@ -14,11 +16,17 @@ permissions:
 vision:
   enabled: false
   emotion_detection: false
+  ocr_engine: "tesseract"
 
 memory:
   rolling_days: 3
   vector_store: true
+  max_size_mb: 500
 
 gui:
   theme: dark
   startup_banner: true
+  window_size: "1000x700"
+
+user:
+  name: "IRFAN"

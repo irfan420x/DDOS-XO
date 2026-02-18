@@ -1,26 +1,41 @@
 # Path: app/main.py
+import asyncio
+import sys
 import os
-import yaml
-from core.controller import LunaController
+from app.bootstrap import LunaBootstrap, LifecycleManager
 from gui.main_window import LunaGUI
 
-def load_config():
-    config_path = os.path.join(os.path.dirname(__file__), '../config/config.yaml')
-    with open(config_path, 'r') as f:
-        return yaml.safe_load(f)
-
-def main():
-    print("🌙 LUNA-ULTRA Activated")
-    print("LLM: DeepSeek API")
-    print("Permission: SAFE")
-    print("Memory: Restored (3 days)")
-    print("All systems stable.")
-    print("Welcome back, IRFAN.")
+async def main():
+    """
+    Main entry point for LUNA-ULTRA.
+    """
+    # 1. Initialize Bootstrap
+    bootstrap = LunaBootstrap("config/config.yaml")
     
-    config = load_config()
-    controller = LunaController(config)
+    # 2. Initialize System
+    controller = bootstrap.initialize_system()
+    
+    # 3. Display Startup Banner
+    bootstrap.display_startup_banner()
+    
+    # 4. Initialize Lifecycle Manager
+    lifecycle = LifecycleManager(controller)
+    
+    # 5. Initialize GUI
+    # Note: In a real app, the GUI would run in the main thread
+    # and the controller would run in an async loop.
+    # For this implementation, we'll simulate the GUI startup.
     gui = LunaGUI(controller)
-    gui.run()
+    
+    # 6. Run GUI (This is a blocking call)
+    try:
+        gui.run()
+    except KeyboardInterrupt:
+        lifecycle.shutdown()
+    except Exception as e:
+        print(f"LUNA-ULTRA: Fatal error: {str(e)}")
+        lifecycle.shutdown()
 
 if __name__ == "__main__":
-    main()
+    # Run the async main function
+    asyncio.run(main())
