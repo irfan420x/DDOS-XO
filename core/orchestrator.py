@@ -21,14 +21,16 @@ class Orchestrator:
         from agents.automation_agent import AutomationAgent
         from agents.screen_agent import ScreenAgent
         from agents.system_agent import SystemAgent
-        from agents.dynamic_agent import DynamicAgent # Import DynamicAgent
+        from agents.dynamic_agent import DynamicAgent
+        from agents.architect_agent import ArchitectAgent
 
         # Register agents with their required dependencies
         self.agents["code"] = CodeAgent(self.controller.config, self.controller.llm_router)
         self.agents["automation"] = AutomationAgent(self.controller.config, self.controller.permission_engine)
         self.agents["screen"] = ScreenAgent(self.controller.config, self.controller.permission_engine)
         self.agents["system"] = SystemAgent(self.controller.config)
-        self.agents["dynamic"] = DynamicAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine) # Initialize DynamicAgent
+        self.agents["dynamic"] = DynamicAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine)
+        self.agents["architect"] = ArchitectAgent(self.controller.config, self.controller.llm_router)
         
         logging.info(f"Orchestrator: Initialized {len(self.agents)} agents.")
 
@@ -117,7 +119,30 @@ class Orchestrator:
         # Execute plan
         if plan:
             logging.info(f"Orchestrator: Executing plan with {len(plan)} steps.")
-            execution_results = await self.execute_plan(plan)
+            self.controller.state_manager.update_task(user_input, plan)
+            execution_results = []
+            
+            for step in plan:
+                # Update GUI with current action (Manus-style)
+                if hasattr(self.controller, 'gui') and self.controller.gui:
+                    self.controller.gui.update_activity(f"Executing: {step.get('agent')} -> {step.get('action')}")
+                
+                agent_name = step.get("agent")
+                action = step.get("action")
+                params = step.get("params", {})
+                
+                try:
+                    result = await self.agents[agent_name].execute(action, params)
+                    execution_results.append({"step": step, "result": result})
+                    self.controller.state_manager.complete_step(result)
+                    
+                    if not result.get("success") and step.get("critical", True):
+                        logging.error(f"Orchestrator: Critical failure in step {step}. Aborting.")
+                        break
+                except Exception as e:
+                    logging.error(f"Orchestrator: Error in agent {agent_name}: {str(e)}")
+                    break
+
             return {"plan": plan, "results": execution_results, "type": "tool_action"}
         else:
             logging.info("Orchestrator: No plan generated. Falling back to chat response.")

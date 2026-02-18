@@ -1,0 +1,21 @@
+{
+    "current_task": "create a folder named test_folder",
+    "completed_steps": [
+        {
+            "step": {
+                "agent": "system",
+                "action": "create_folder",
+                "params": {
+                    "folder_name": "test_folder",
+                    "path": "."
+                }
+            },
+            "result": {
+                "error": "Action create_folder not supported"
+            }
+        }
+    ],
+    "pending_steps": [],
+    "context": {},
+    "last_updated": null
+}
