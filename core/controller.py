@@ -14,6 +14,7 @@ from security.sandbox_executor import SandboxExecutor
 from automation.telegram_controller import TelegramController
 from vision.vision_loop import VisionLoop
 from core.skill_manager import SkillManager
+from security.security_sentinel import SecuritySentinel
 
 class LunaController:
     """
@@ -32,6 +33,7 @@ class LunaController:
         self.orchestrator = Orchestrator(self)
         self.telegram = TelegramController(self.config, self)
         self.vision_loop = VisionLoop(self)
+        self.security_sentinel = SecuritySentinel(self)
         self.system_prompt = self.load_system_prompt()
         logging.info("LunaController initialized.")
 
@@ -43,6 +45,9 @@ class LunaController:
         
         if self.vision_loop.enabled:
             asyncio.create_task(self.vision_loop.start())
+        
+        if self.security_sentinel.enabled:
+            asyncio.create_task(self.security_sentinel.start())
 
     async def shutdown_services(self):
         """Shuts down background services."""
@@ -51,6 +56,9 @@ class LunaController:
         
         if self.vision_loop.running:
             await self.vision_loop.stop()
+        
+        if self.security_sentinel.running:
+            await self.security_sentinel.stop()
 
     def load_config(self) -> Dict[str, Any]:
         try:

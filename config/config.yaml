@@ -58,4 +58,6 @@ dynamic_agent:
 
 security:
   audit_logging: true
-  sandbox_enabled: true # Ensure sandbox is enabled
+  sandbox_enabled: true
+  sentinel_enabled: true
+  sentinel_interval: 30
