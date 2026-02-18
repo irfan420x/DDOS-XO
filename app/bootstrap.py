@@ -2,8 +2,8 @@
 import os
 import sys
 import yaml
-import time
-from typing import Dict, Any, Optional
+import asyncio
+from typing import Dict, Any
 from core.controller import LunaController
 
 class LunaBootstrap:
@@ -13,7 +13,6 @@ class LunaBootstrap:
     def __init__(self, config_path: str = "config/config.yaml"):
         self.config_path = config_path
         self.config = self.load_config()
-        self.controller = None
 
     def load_config(self) -> Dict[str, Any]:
         if not os.path.exists(self.config_path):
@@ -23,7 +22,7 @@ class LunaBootstrap:
         with open(self.config_path, 'r') as f:
             return yaml.safe_load(f)
 
-    def initialize_system(self) -> LunaController:
+    async def initialize_system(self) -> LunaController:
         """
         Initializes all core components and returns the controller.
         """
@@ -36,50 +35,14 @@ class LunaBootstrap:
                 os.makedirs(d)
         
         # 2. Initialize Controller
-        self.controller = LunaController(self.config_path)
+        controller = LunaController(self.config_path)
         
-        # 3. Verify LLM Connectivity (Simulated)
+        # 3. Verify LLM Connectivity
         print(f"🌙 LUNA-ULTRA: Connecting to {self.config['llm']['default_provider']} API...")
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
         
         # 4. Load Memory
         print(f"🌙 LUNA-ULTRA: Restoring memory (3-day rolling window)...")
-        time.sleep(0.5)
+        await asyncio.sleep(0.5)
         
-        return self.controller
-
-    def display_startup_banner(self):
-        """
-        Displays the professional startup banner.
-        """
-        banner = f"""
-        🌙 LUNA-ULTRA Activated
-        -----------------------------------
-        LLM: {self.config['llm']['default_provider'].upper()} API
-        Permission: {self.config['permissions']['level']}
-        Memory: Restored (3 days)
-        User: {self.config['user']['name']}
-        -----------------------------------
-        All systems stable.
-        Welcome back, {self.config['user']['name']}.
-        """
-        print(banner)
-
-class LifecycleManager:
-    """
-    Manages the application lifecycle (startup, shutdown, always-on).
-    """
-    def __init__(self, controller: LunaController):
-        self.controller = controller
-        self.is_running = True
-
-    def shutdown(self):
-        """
-        Gracefully shuts down the system.
-        """
-        print("🌙 LUNA-ULTRA: Shutting down systems...")
-        # Save memory, close connections, etc.
-        self.controller.memory_manager.save_memory()
-        self.is_running = False
-        print("🌙 LUNA-ULTRA: Shutdown complete. Goodbye, IRFAN.")
-        sys.exit(0)
+        return controller

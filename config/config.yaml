@@ -2,7 +2,7 @@
 llm:
   mode: api
   default_provider: deepseek
-  fallback_enabled: false
+  fallback_enabled: true
   api_keys:
     deepseek: "YOUR_DEEPSEEK_API_KEY"
     openai: "YOUR_OPENAI_API_KEY"
@@ -30,3 +30,13 @@ gui:
 
 user:
   name: "IRFAN"
+
+automation:
+  timeout: 60
+
+security:
+  blacklist:
+    - "rm -rf /"
+    - "mkfs"
+    - "dd if=/dev/zero"
+    - "sudo rm"

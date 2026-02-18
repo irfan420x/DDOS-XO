@@ -1,0 +1,20 @@
+# Path: requirements.txt
+requests
+pyyaml
+tkinter
+pillow
+openai
+anthropic
+google-generativeai
+numpy
+pandas
+scikit-learn
+opencv-python
+pytesseract
+pynput
+selenium
+webdriver-manager
+fastapi
+uvicorn
+psutil
+python-dotenv
