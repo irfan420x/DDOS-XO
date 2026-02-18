@@ -1,7 +1,6 @@
 # Path: requirements.txt
 requests
 pyyaml
-tkinter
 pillow
 openai
 anthropic
