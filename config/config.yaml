@@ -1,35 +1,24 @@
 # Path: config/config.yaml
-
-agent:
-  name: "LUNA"
-  version: "1.0.0-ULTRA"
-  personality_file: "core/system_prompt.py"
-
 llm:
-  provider: "deepseek"
-  api_key: "RUNTIME_ONLY" # Never save to file
-  model: "deepseek-chat"
-  base_url: "https://api.deepseek.com"
-  fallback_provider: "ollama"
+  mode: api
+  default_provider: deepseek
+  fallback_enabled: false
+  api_keys:
+    deepseek: "YOUR_DEEPSEEK_API_KEY"
+    openai: "YOUR_OPENAI_API_KEY"
+
+permissions:
+  level: SAFE
+  require_confirmation: true
 
 vision:
-  emotion_detection: true
-  screen_capture: true
-  camera_index: 0
-
-execution:
-  sandbox_enabled: true
-  allow_github_push: true
-  default_repo: "Irfan430/DDOS-XO"
-
-automation:
-  browser: "chrome"
-  allow_system_control: true
+  enabled: false
+  emotion_detection: false
 
 memory:
   rolling_days: 3
-  db_type: "chromadb"
+  vector_store: true
 
-security:
-  level: "STANDARD" # SAFE, STANDARD, ADVANCED, ROOT
-  emergency_key: "ctrl+alt+l"
+gui:
+  theme: dark
+  startup_banner: true

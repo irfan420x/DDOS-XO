@@ -1,78 +1,90 @@
-# Path: README.md
-
-<div align="center">
-
 # 🌙 LUNA-ULTRA
-### *The Autonomous Emotional Intelligence Agent*
 
-[![Version](https://img.shields.io/badge/Version-1.0.0--ULTRA-blueviolet?style=for-the-badge)](https://github.com/Irfan430/DDOS-XO)
-[![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
-[![DeepSeek](https://img.shields.io/badge/Powered%20By-DeepSeek-007bff?style=for-the-badge)](https://deepseek.com)
-
-<img src="https://raw.githubusercontent.com/LUNA-AI/assets/main/luna_3d_banner.gif" width="100%" alt="LUNA 3D Banner" />
+<p align="center">
+  <img src="https://img.shields.io/badge/LUNA--ULTRA-vFinal-blueviolet?style=for-the-badge&logo=moon" alt="LUNA-ULTRA">
+  <img src="https://img.shields.io/badge/Architecture-Single%20LLM-blue?style=for-the-badge" alt="Architecture">
+  <img src="https://img.shields.io/badge/Main%20Brain-DeepSeek-green?style=for-the-badge" alt="Main Brain">
+</p>
 
 ---
 
-### 🌟 "I am LUNA. I don't just follow commands; I understand you."
+## 🧠 Overview
+**LUNA-ULTRA** is a next-generation AI agent system designed for power, security, and elegance. Built with a single LLM architecture (defaulting to DeepSeek), it provides a unified brain for all agentic tasks including coding, automation, vision, and system control.
 
-</div>
+### 🚀 Key Features
+- **Single LLM Brain**: Unified intelligence using DeepSeek API for stable and consistent behavior.
+- **Hybrid Ultra Architecture**: Combines local execution with cloud-based intelligence.
+- **Modern Dark GUI**: A beautiful, professional interface for seamless interaction.
+- **Strict Permission System**: Multi-level security (SAFE, STANDARD, ADVANCED, ROOT) to protect your system.
+- **Self-Healing Code Loop**: Automatically detects and fixes errors in generated code.
+- **3-Day Rolling Memory**: Context-aware memory with vector storage and auto-summarization.
+- **Vision & Emotion**: On-demand screen capture and emotion detection capabilities.
 
-## 🚀 Overview
-**LUNA-ULTRA** is not just another AI assistant. It is a highly advanced, autonomous digital twin designed to live on your desktop. Powered by **DeepSeek**, LUNA understands your emotions, sees your screen, writes and tests code, and manages your system with unprecedented autonomy.
+---
 
-## 🧠 Core Features
-
-### 🎭 Emotional Intelligence
-LUNA uses your camera to detect your facial expressions. If you're frustrated with a bug, LUNA will offer encouragement and proactive solutions.
-
-### 👁️ Visual Awareness
-- **On-Demand Vision**: "Luna, look at my screen." LUNA captures your screen to help debug code or explain what you're seeing.
-- **OCR Integration**: Reads text from images and videos in real-time.
-
-### 💻 Autonomous Execution
-- **Self-Healing Code**: LUNA writes code, runs it in a sandbox, and fixes errors automatically until it works.
-- **GitHub Integration**: LUNA can commit and push your projects directly to your repositories.
-
-### 🌐 Multilingual Mastery
-Fluent in **Bengali** and **English**. LUNA understands the nuances of your language and culture.
-
-### 🕒 3-Day Rolling Memory
-LUNA remembers every conversation and task from the last 3 days, providing perfect context for your ongoing projects.
-
-## 📂 Project Structure
+## 🏗 Project Structure
 ```text
 luna-ultra/
-├── main.py             # The heart of LUNA
-├── core/               # Personality & Engine
-├── security/           # Safety & Permissions
-├── llm/                # DeepSeek Brain
-├── modules/            # Vision, Voice, Execution, Browser
-├── gui/                # Futuristic Dashboard
-├── config/             # YAML Settings
-└── data/               # Local Vector Memory
+├── app/            # Application lifecycle and startup
+├── core/           # Orchestrator and state management
+├── agents/         # Specialized agents (Code, Screen, Emotion, etc.)
+├── llm/            # LLM Router and API providers
+├── memory/         # Vector store and memory management
+├── automation/     # Shell, Mouse, Keyboard, Browser control
+├── vision/         # Screen capture and OCR
+├── security/       # Permission and policy engines
+├── gui/            # Modern Dark UI panels and widgets
+└── config/         # Configuration and system prompts
 ```
 
-## 🛠️ Installation
-1. **Clone the repo:**
+---
+
+## 🛠 Installation & Setup
+
+### Prerequisites
+- Python 3.10+
+- DeepSeek API Key (or OpenAI/Anthropic)
+
+### Quick Start
+1. **Clone the repository**:
    ```bash
    git clone https://github.com/Irfan430/DDOS-XO.git
    cd DDOS-XO
    ```
-2. **Install dependencies:**
+2. **Install dependencies**:
    ```bash
    pip install -r requirements.txt
    ```
-3. **Set your API Key:**
-   LUNA will ask for your DeepSeek API key on the first run. It is stored only in memory for your security.
-4. **Launch LUNA:**
+3. **Configure your API keys**:
+   Edit `config/config.yaml` and add your DeepSeek API key.
+4. **Run LUNA-ULTRA**:
    ```bash
-   python main.py
+   python app/main.py
    ```
 
-## 🛡️ Security
-LUNA operates with a **Safety-First** approach. Dangerous system commands require your explicit confirmation unless you elevate LUNA to ROOT mode.
+---
+
+## 🔐 Security Levels
+- **SAFE**: Read-only access. No system changes allowed.
+- **STANDARD**: File and application level access.
+- **ADVANCED**: Shell and Docker execution allowed.
+- **ROOT**: Full system control. Use with caution.
 
 ---
-<div align="center">
-Built with ❤️ by <b>IRFAN</b> & <b>LUNA</b>
-</div>
+
+## 🐳 Docker Support
+Build and run LUNA-ULTRA in a containerized environment:
+```bash
+docker build -t luna-ultra .
+docker run -d luna-ultra
+```
+
+---
+
+<p align="center">
+  <i>"LUNA is fully operational. Welcome back, IRFAN."</i>
+</p>
+
+<p align="center">
+  <b>Author: IRFAN</b>
+</p>
