@@ -1,0 +1,4 @@
+pillow
+opencv-python
+pytesseract
+# Note: pytesseract requires tesseract-ocr system package

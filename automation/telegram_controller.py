@@ -9,10 +9,10 @@ class TelegramController:
     """
     LUNA-ULTRA Telegram Controller: Enables remote control via Telegram Bot.
     """
-    def __init__(self, config: Dict[str, Any], controller: Any):
-        self.config = config.get("telegram", {})
-        self.user_config = config.get("user", {})
+    def __init__(self, controller: Any):
         self.controller = controller
+        self.config = controller.config.get("automation", {}).get("telegram", {})
+        self.user_config = controller.config.get("user", {})
         self.token = self.config.get("token")
         self.authorized_id = str(self.user_config.get("telegram_id"))
         self.enabled = self.config.get("enabled", False)
@@ -55,19 +55,8 @@ class TelegramController:
         user_input = update.message.text
         await update.message.reply_text(f"Processing command: {user_input}...")
         
-        # Delegate to orchestrator
-        response_data = await self.controller.orchestrator.handle_task(user_input)
-        
-        if response_data.get("type") == "chat":
-            response = response_data.get("response")
-        else:
-            results = response_data.get("results", [])
-            if results:
-                last_res = results[-1].get("result", {})
-                response = f"Task completed. Output: {last_res.get('output', 'Success')}"
-            else:
-                response = "Action executed."
-        
+        # Delegate to controller process_input
+        response = await self.controller.process_input(user_input)
         await update.message.reply_text(f"🌙 LUNA: {response}")
 
     async def send_notification(self, message: str):

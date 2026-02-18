@@ -1,0 +1,15 @@
+features:
+  voice:
+    enabled: true
+    provider: "gtts"
+  
+  vision:
+    enabled: true
+    loop_enabled: true
+    loop_interval: 15
+    ocr_enabled: true
+  
+  memory:
+    rolling_days: 3
+    vector_store: true
+    infinite_memory: true

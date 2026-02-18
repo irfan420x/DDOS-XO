@@ -1,0 +1,12 @@
+security:
+  level: "ADVANCED" # Options: STANDARD, ADVANCED, ROOT, AUTONOMOUS
+  sandbox_enabled: true
+  audit_logging: true
+  sentinel_enabled: true
+  sentinel_interval: 30
+  
+  blacklist:
+    - "rm -rf /"
+    - "mkfs"
+    - "dd if=/dev/zero"
+    - ":(){ :|:& };:"
