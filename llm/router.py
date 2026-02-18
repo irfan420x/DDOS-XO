@@ -28,9 +28,15 @@ class LLMRouter:
         if provider_name not in self.providers:
             return f"Error: Provider {provider_name} not configured."
 
+        import logging
+        logging.info(f"LLMRouter: Sending prompt to {provider_name} with system prompt: {system_prompt}\nPrompt: {prompt}")
         try:
-            return await self.providers[provider_name].generate(prompt, system_prompt)
+            response = await self.providers[provider_name].generate(prompt, system_prompt)
+            logging.info(f"LLMRouter: Received response from {provider_name}: {response}")
+            return response
         except Exception as e:
+            logging.error(f"LLMRouter: Error from {provider_name}: {str(e)}")
             if self.fallback_enabled and provider_name != 'openai':
+                logging.warning(f"LLMRouter: Falling back to OpenAI due to error from {provider_name}.")
                 return await self.generate_response(prompt, system_prompt, provider='openai')
             return f"LLM Error ({provider_name}): {str(e)}"

@@ -590,3 +590,60 @@
 2026-02-18 11:21:36,608 - root - INFO - Task processing complete.
 2026-02-18 11:21:36,609 - root - INFO - Processing user input: 
 2026-02-18 11:21:36,609 - root - INFO - Orchestrator: Handling task: 
+2026-02-18 11:48:21,750 - root - INFO - LUNA-ULTRA: Starting system...
+2026-02-18 11:48:21,764 - root - INFO - SandboxExecutor initialized. Sandbox enabled: True
+2026-02-18 11:48:21,767 - sentence_transformers.SentenceTransformer - INFO - Use pytorch device_name: cpu
+2026-02-18 11:48:21,767 - sentence_transformers.SentenceTransformer - INFO - Load pretrained SentenceTransformer: all-MiniLM-L6-v2
+2026-02-18 11:48:22,060 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:22,066 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/modules.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:22,299 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:22,300 - huggingface_hub.utils._http - WARNING - Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+2026-02-18 11:48:22,304 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/config_sentence_transformers.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:22,534 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config_sentence_transformers.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:22,539 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/config_sentence_transformers.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:22,763 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/README.md "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:22,769 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/README.md "HTTP/1.1 200 OK"
+2026-02-18 11:48:22,996 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/modules.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:23,001 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/modules.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:23,234 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/sentence_bert_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:23,239 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/sentence_bert_config.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:23,463 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/adapter_config.json "HTTP/1.1 404 Not Found"
+2026-02-18 11:48:23,691 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:23,696 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/config.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:24,270 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:24,274 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/config.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:24,508 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:24,513 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/tokenizer_config.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:24,751 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main/additional_chat_templates?recursive=false&expand=false "HTTP/1.1 404 Not Found"
+2026-02-18 11:48:24,986 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2/tree/main?recursive=true&expand=false "HTTP/1.1 200 OK"
+2026-02-18 11:48:25,331 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2/resolve/main/1_Pooling/config.json "HTTP/1.1 307 Temporary Redirect"
+2026-02-18 11:48:25,337 - httpx - INFO - HTTP Request: HEAD https://huggingface.co/api/resolve-cache/models/sentence-transformers/all-MiniLM-L6-v2/c9745ed1d9f207416be6d2e6f8de32d1f16199bf/1_Pooling%2Fconfig.json "HTTP/1.1 200 OK"
+2026-02-18 11:48:25,589 - httpx - INFO - HTTP Request: GET https://huggingface.co/api/models/sentence-transformers/all-MiniLM-L6-v2 "HTTP/1.1 200 OK"
+2026-02-18 11:48:25,594 - root - INFO - SentenceTransformer model loaded for vector embeddings.
+2026-02-18 11:48:25,595 - root - INFO - VectorStore initialized.
+2026-02-18 11:48:25,610 - root - INFO - Cleaned up old memory. Remaining entries: 11
+2026-02-18 11:48:25,610 - root - INFO - MemoryManager initialized.
+2026-02-18 11:48:25,620 - root - INFO - SandboxExecutor initialized. Sandbox enabled: True
+2026-02-18 11:48:25,620 - root - INFO - DynamicAgent initialized. Detected OS: linux
+2026-02-18 11:48:25,620 - root - INFO - Orchestrator: Initialized 5 agents.
+2026-02-18 11:48:25,621 - root - INFO - LunaController initialized.
+2026-02-18 11:48:26,625 - root - INFO - LUNA-ULTRA: Running in CLI mode.
+2026-02-18 11:48:37,341 - root - INFO - Processing user input: hi
+2026-02-18 11:48:37,341 - root - INFO - Orchestrator: Handling task: hi
+2026-02-18 11:48:37,341 - root - INFO - Orchestrator: Intent classified as conversation (greeting).
+2026-02-18 11:48:37,341 - root - INFO - LLMRouter: Sending prompt to deepseek with system prompt: None
+Prompt: Respond to this greeting: hi
+2026-02-18 11:48:40,390 - root - INFO - LLMRouter: Received response from deepseek: Hi there! 👋 How are you today?
+2026-02-18 11:48:41,146 - root - INFO - Task processing complete.
+2026-02-18 11:48:41,147 - root - INFO - Processing user input: 
+2026-02-18 11:48:41,147 - root - INFO - Orchestrator: Handling task: 
+2026-02-18 11:48:41,147 - root - INFO - LLMRouter: Sending prompt to deepseek with system prompt: None
+Prompt: User Task: 
+Available Agents: ['code', 'automation', 'screen', 'system', 'dynamic']. Prioritize specific agents over dynamic agent if applicable.
+Generate a JSON list of steps with 'agent', 'action', and 'params'.If no specific agent can handle the task, use the 'dynamic' agent with action 'generate_and_execute' and pass the original task description.
+If the user input is a general conversational query and does not require tool execution, respond with an empty JSON list: [].
+Example for dynamic agent: [{'agent': 'dynamic', 'action': 'generate_and_execute', 'params': {'task_description': 'original task', 'available_tools': {'python': True, 'bash': True}}}]
+2026-02-18 11:48:43,958 - root - INFO - LLMRouter: Received response from deepseek: []
+2026-02-18 11:48:43,959 - root - INFO - Orchestrator: Intent classified as conversation (LLM-based). Generating chat response.
+2026-02-18 11:48:43,959 - root - INFO - LLMRouter: Sending prompt to deepseek with system prompt: None
+Prompt: 
