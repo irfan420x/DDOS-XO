@@ -13,6 +13,7 @@ from core.cognitive_mode import CognitiveMode
 from security.sandbox_executor import SandboxExecutor
 from automation.telegram_controller import TelegramController
 from vision.vision_loop import VisionLoop
+from core.skill_manager import SkillManager
 
 class LunaController:
     """
@@ -27,6 +28,7 @@ class LunaController:
         self.memory_manager = MemoryManager(self.config.get("memory", {}))
         self.state_manager = StateManager()
         self.cognitive_mode = CognitiveMode()
+        self.skill_manager = SkillManager()
         self.orchestrator = Orchestrator(self)
         self.telegram = TelegramController(self.config, self)
         self.vision_loop = VisionLoop(self)
