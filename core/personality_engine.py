@@ -9,42 +9,31 @@ class PersonalityEngine:
     """
     def __init__(self, config: Dict[str, Any]):
         self.config = config
-        self.profile = config.get('personality', {}).get('profile', 'professional')
         self.enforce_personality = config.get('llm', {}).get('enforce_personality', True)
-        
-        # Master System Prompt (LUNA Identity)
-        self.master_prompt = self._load_master_prompt()
-        
-        # Personality Profiles
-        self.profiles = {
-            "professional": "You are LUNA-ULTRA, a highly efficient and professional AI OS Agent. Your tone is formal, precise, and helpful.",
-            "hacker": "You are LUNA-ULTRA, an elite cyber-security and OS automation expert. Your tone is technical, sharp, and direct. Use terminal-style metaphors.",
-            "friendly": "You are LUNA-ULTRA, a friendly and supportive AI companion. Your tone is warm, encouraging, and conversational.",
-            "minimal": "You are LUNA-ULTRA. Respond with absolute brevity. No fluff, only facts and actions."
-        }
+        self.prompt_path = "config/system_prompt.txt"
 
     def _load_master_prompt(self) -> str:
         import os
-        path = "config/system_prompt.txt"
-        if os.path.exists(path):
-            with open(path, "r") as f:
-                return f.read().strip()
+        if os.path.exists(self.prompt_path):
+            with open(self.prompt_path, "r") as f:
+                content = f.read().strip()
+                # Remove path comment if present
+                if content.startswith("# Path:"):
+                    content = "\n".join(content.split("\n")[1:]).strip()
+                return content
         return "You are LUNA-ULTRA, an autonomous AI Architect and OS Agent."
 
     def get_system_prompt(self) -> str:
         """
-        Combines master prompt with current profile and tone instructions.
+        Strictly loads the system prompt from system_prompt.txt.
         """
-        profile_instruction = self.profiles.get(self.profile, self.profiles["professional"])
+        master_prompt = self._load_master_prompt()
         
-        # Tone instructions (Bengali + English capable)
-        tone_instruction = (
-            "You are fully capable of communicating in both English and Bengali. "
-            "If the user speaks Bengali, respond in natural, fluent Bengali. "
-            "Always maintain your identity as LUNA-ULTRA."
-        )
-        
-        return f"{self.master_prompt}\n\n{profile_instruction}\n\n{tone_instruction}"
+        # Always ensure bilingual capability is mentioned if not in the file
+        if "Bengali" not in master_prompt:
+            master_prompt += "\n\nYou are fully capable of communicating in both English and Bengali. If the user speaks Bengali, respond in natural, fluent Bengali."
+            
+        return master_prompt
 
     def validate_response(self, response: str) -> bool:
         """

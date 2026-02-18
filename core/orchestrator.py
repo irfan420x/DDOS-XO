@@ -32,9 +32,13 @@ class Orchestrator:
 
     async def handle_task(self, user_input: str) -> Dict[str, Any]:
         logging.info(f"Orchestrator: Analyzing task: {user_input}")
+        
+        # 0. Get Memory Context
+        memory_context = self.controller.memory_manager.get_context(user_input)
 
         # 1. Intent Classification
         intent_prompt = (
+            f"Context:\n{memory_context}\n\n"
             f"Classify the user intent for: \"{user_input}\"\n"
             f"Categories: GREETING, CONVERSATION, CODING, SYSTEM_ACTION, WEB_ACTION, AUTOMATION, ANALYSIS.\n"
             f"Respond in format: INTENT: <CATEGORY> | THOUGHT: <REASONING>"
@@ -56,7 +60,8 @@ class Orchestrator:
         # 2. Routing Logic
         action_intents = ["CODING", "SYSTEM_ACTION", "WEB_ACTION", "AUTOMATION", "ANALYSIS"]
         if intent not in action_intents:
-            chat_response = await self.controller.llm_router.generate_response(user_input)
+            chat_prompt = f"Context:\n{memory_context}\n\nUser: {user_input}"
+            chat_response = await self.controller.llm_router.generate_response(chat_prompt)
             return {"response": chat_response, "type": "chat", "thought": thought}
 
         # 3. Tool Planning

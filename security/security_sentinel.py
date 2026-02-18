@@ -62,9 +62,30 @@ class SecuritySentinel:
             await self.notify(msg)
             # We don't automatically add to known_ports to keep alerting until user acknowledges
         
-        # 2. Log Monitoring (Simplified for demo, targets auth.log)
+        # 2. Process Monitoring (Check for suspicious processes)
+        await self.check_suspicious_processes()
+        
+        # 3. Log Monitoring (Simplified for demo, targets auth.log)
         if os.path.exists("/var/log/auth.log"):
             await self.check_auth_logs()
+
+    async def check_suspicious_processes(self):
+        """Checks for common suspicious process names or high resource usage."""
+        import psutil
+        suspicious_names = ["miner", "nc", "netcat", "nmap", "wireshark", "tcpdump"]
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+            try:
+                pinfo = proc.info
+                if any(name in pinfo['name'].lower() for name in suspicious_names):
+                    msg = f"🚨 SECURITY ALERT: Suspicious process detected: {pinfo['name']} (PID: {pinfo['pid']})"
+                    await self.notify(msg)
+                
+                # High CPU usage alert (e.g., > 90%)
+                if pinfo['cpu_percent'] > 90.0:
+                    msg = f"⚠️ PERFORMANCE ALERT: High CPU usage by {pinfo['name']} (PID: {pinfo['pid']}): {pinfo['cpu_percent']}%"
+                    await self.notify(msg)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
 
     async def check_auth_logs(self):
         """Scans auth logs for suspicious login attempts."""
