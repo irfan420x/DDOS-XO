@@ -32,6 +32,17 @@ class LunaController:
         self.memory_manager = MemoryManager(self.config.get("features", {}).get("memory", {}))
         self.state_manager = StateManager()
         self.cognitive_mode = CognitiveMode()
+        
+        # Advanced Features (v2.3)
+        from agents.thought_loop import ThoughtLoop
+        from core.system_health import SystemHealth
+        from agents.skill_acquisition import SkillAcquisition
+        from automation.browser_controller import BrowserController
+        
+        self.browser = BrowserController(self.config.get("automation", {}).get("browser", {}))
+        self.thought_loop = ThoughtLoop(self)
+        self.system_health = SystemHealth(self)
+        self.skill_acquisition = SkillAcquisition(self)
         self.skill_manager = SkillManager()
         self.orchestrator = Orchestrator(self)
         

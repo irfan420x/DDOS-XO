@@ -12,30 +12,30 @@ LUNA-ULTRA is a next-generation autonomous agent designed for **Full OS Control*
 
 ---
 
-## 🚀 Key Features (v2.2 Upgrade)
+## 🚀 Key Features (v2.3 Advanced Upgrade)
 
-### 🧠 Central Personality Engine
+### 🧠 Central Personality Engine & Voice Emotion
 - **Strict Identity Control**: LUNA's personality is strictly controlled via `config/system_prompt.txt`.
-- **Personality Validation**: Automatically detects and corrects identity drift (e.g., if the model forgets it's LUNA).
-- **Bilingual Support**: Fully capable of communicating in **English** and **Bengali** naturally.
+- **Voice Emotion Analysis**: LUNA can analyze user tone and adapt its response style (Bengali/English).
+- **Personality Validation**: Automatically detects and corrects identity drift.
 
-### 🛠️ Unified LLM Abstraction
-- **API Mode**: High-performance models (DeepSeek, OpenAI, Anthropic, Gemini).
-- **Local Mode**: Privacy-focused offline use via **Ollama** or **llama.cpp**.
-- **Hybrid Mode**: Dynamically switches between Local and API based on task complexity.
+### 🛠️ Unified LLM & Self-Reflective Debugging
+- **Thought Loop**: LUNA enters a self-reflective loop to fix its own code and plan errors autonomously.
+- **Multi-Agent Collaboration**: Internal agents (Architect, Coder, Security) collaborate on complex tasks.
+- **Unified LLM**: Supports API, Local (Ollama), and Hybrid modes.
 
-### 📂 Self-Evolving Memory
-- **Long-term Context**: Uses a vector database (ChromaDB) to remember past interactions and user preferences.
-- **Infinite Recall**: LUNA recalls relevant past memories to provide context-aware assistance.
+### 📂 Self-Evolving Memory & Skill Acquisition
+- **Infinite Memory**: Uses ChromaDB for long-term context and past interaction recall.
+- **Autonomous Skill Acquisition**: LUNA can search for, write, and install its own "Skills" (plugins) to handle new tasks.
 
-### 🌐 Real-time Web Awareness
-- **Live Search**: LUNA can search Google for real-time information, news, and documentation.
-- **Content Extraction**: Fetches and summarizes webpage content for deep analysis.
+### 🌐 Web Awareness & Predictive Maintenance
+- **Live Web Search**: Real-time Google search and content extraction.
+- **System Health Sentinel**: Monitors CPU, RAM, Temp, and Disk health. Provides predictive maintenance alerts.
 
-### 🛡️ Hardened Security Sentinel
-- **Port Monitoring**: Detects unauthorized open ports.
-- **Process Sentinel**: Monitors for suspicious processes (miners, netcats) and high CPU usage.
-- **Regex Blacklist**: Prevents dangerous shell commands with advanced pattern matching.
+### 🛡️ Hardened Security & HUD Overlay
+- **Security Sentinel**: Monitors ports, suspicious processes, and high resource usage.
+- **HUD Overlay**: A transparent status indicator for real-time system and LUNA activity.
+- **Regex Blacklist**: Advanced pattern matching for shell command safety.
 
 ---
 
