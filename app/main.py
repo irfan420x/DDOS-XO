@@ -42,7 +42,8 @@ async def main():
     # 5. Run in CLI mode if --cli argument is provided
     if "--cli" in sys.argv:
         logging.info("LUNA-ULTRA: Running in CLI mode.")
-        print("LUNA-ULTRA CLI Mode. Type 'exit' to quit."        while True:
+        print("LUNA-ULTRA CLI Mode. Type 'exit' to quit.")
+        while True:
             try:
                 user_input = await asyncio.to_thread(input, "You: ")
                 if user_input.lower() == 'exit':
@@ -55,15 +56,20 @@ async def main():
                 logging.error(f"LUNA-ULTRA CLI Error: {str(e)}")
                 print(f"LUNA: An error occurred: {str(e)}")
         await controller.shutdown_services()
-        await lifecycle.shutdown()nter)
-        # Note: In some environments, GUI might need to run in the main thread
-        from gui.main_window import LunaGUI # Import here to avoid error if not running GUI
+        await lifecycle.shutdown()
+    else:
+        # Launch GUI
+        from PyQt6.QtWidgets import QApplication
+        from gui.main_window import LunaGUI
+        
+        app = QApplication(sys.argv)
         logging.info("LUNA-ULTRA: Launching GUI...")
         gui = LunaGUI(controller)
+        gui.show()
         
-        # 6. Run GUI
+        # Run GUI event loop
         try:
-            gui.run()
+            sys.exit(app.exec())
         except KeyboardInterrupt:
             logging.info("LUNA-ULTRA: Shutdown signal received.")
             await controller.shutdown_services()

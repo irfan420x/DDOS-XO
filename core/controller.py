@@ -109,10 +109,41 @@ class LunaController:
         self.memory_manager.store_interaction(user_input, response)
         return response
 
+    def update_config(self, new_config: Dict[str, Any]):
+        """
+        Updates the system configuration dynamically and reloads affected modules.
+        """
+        logging.info(f"LunaController: Updating configuration: {new_config}")
+        
+        # 1. Update internal config dictionary
+        for section, values in new_config.items():
+            if section not in self.config:
+                self.config[section] = {}
+            self.config[section].update(values)
+            
+        # 2. Update LLM Router if needed
+        if "llm" in new_config:
+            self.llm_router.default_provider = self.config["llm"].get("default_provider", "deepseek")
+            if "api_keys" in new_config["llm"]:
+                for provider, key in new_config["llm"]["api_keys"].items():
+                    if provider in self.llm_router.providers:
+                        self.llm_router.providers[provider].api_key = key
+        
+        # 3. Update Permission Engine if needed
+        if "permissions" in new_config or "security" in new_config:
+            from security.permission_engine import PermissionLevel
+            level_str = self.config.get("permissions", {}).get("level") or self.config.get("security", {}).get("level", "SAFE")
+            self.permission_engine.current_level = PermissionLevel[level_str]
+            
+        # 4. Update Voice Engine via GUI if available
+        if "gui" in new_config and hasattr(self, 'gui') and self.gui:
+            if "voice_mode" in new_config["gui"]:
+                self.gui.voice_engine.toggle(new_config["gui"]["voice_mode"])
+
     def get_status(self) -> Dict[str, Any]:
         return {
             "state": "IDLE",
             "mode": "COGNITIVE",
-            "permission": self.config.get("security", {}).get("level", "STANDARD"),
+            "permission": self.config.get("permissions", {}).get("level") or self.config.get("security", {}).get("level", "STANDARD"),
             "provider": self.config.get("llm", {}).get("default_provider", "deepseek")
         }

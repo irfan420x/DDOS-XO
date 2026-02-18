@@ -1,215 +1,287 @@
 # Path: gui/main_window.py
-import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
-from typing import Dict, Any
+import sys
+import os
+import logging
 import threading
 import asyncio
+import psutil
+from typing import Dict, Any, Optional
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QLineEdit, QPushButton, QComboBox, QCheckBox, QTextEdit, 
+    QFrame, QScrollArea, QProgressBar, QSplitter, QStackedWidget
+)
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QSize
+from PyQt6.QtGui import QFont, QIcon, QColor, QPalette
+import qtawesome as qta
+
+from gui.themes.dark_theme import get_dark_theme
 from gui.voice_engine import VoiceEngine
 
-class LunaGUI:
+class WorkerSignals(QObject):
+    response_received = pyqtSignal(str)
+    activity_logged = pyqtSignal(str)
+    thought_logged = pyqtSignal(str)
+
+class LunaGUI(QMainWindow):
     """
-    LUNA-ULTRA Main GUI Window: Modern Dark UI with integrated voice mode.
+    LUNA-ULTRA Main GUI Window: Modern PyQt6 3-panel dashboard.
     """
     def __init__(self, controller: Any):
+        super().__init__()
         self.controller = controller
-        self.controller.gui = self # Register GUI with controller
-        self.root = tk.Tk()
-        self.root.title("🌙 LUNA-ULTRA")
-        self.root.geometry(self.controller.config.get('gui', {}).get('window_size', "1200x800"))
-        self.root.configure(bg="#0b0e14")
+        self.controller.gui = self
+        self.signals = WorkerSignals()
         
         # Initialize Voice Engine
         self.voice_engine = VoiceEngine(self.controller.config)
         
-        self.setup_styles()
-        self.create_widgets()
+        self.setWindowTitle("🌙 LUNA-ULTRA")
+        self.resize(1200, 850)
+        self.setStyleSheet(get_dark_theme())
+        
+        self.setup_ui()
+        self.setup_signals()
+        self.start_system_monitors()
+        
         self.display_welcome_message()
-        self.check_for_resume()
 
-    def setup_styles(self):
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("TFrame", background="#0b0e14")
-        style.configure("TLabel", background="#0b0e14", foreground="#e0e0e0", font=("Segoe UI", 10))
-        style.configure("Header.TLabel", background="#0b0e14", foreground="#bb86fc", font=("Segoe UI", 16, "bold"))
-        style.configure("TButton", background="#1f2937", foreground="#ffffff", borderwidth=0, font=("Segoe UI", 10))
-        style.configure("Action.TButton", background="#bb86fc", foreground="#000000", borderwidth=0, font=("Segoe UI", 10, "bold"))
-        style.map("TButton", background=[('active', '#374151')])
-        style.map("Action.TButton", background=[('active', '#d7b7fd')])
+    def setup_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
 
-    def create_widgets(self):
-        # Top Bar
-        top_bar = ttk.Frame(self.root)
-        top_bar.pack(side="top", fill="x", padx=25, pady=20)
-        ttk.Label(top_bar, text="🌙 LUNA-ULTRA", style="Header.TLabel").pack(side="left")
+        # --- TOP BAR ---
+        top_bar = QFrame()
+        top_bar.setFixedHeight(60)
+        top_bar.setObjectName("Panel")
+        top_layout = QHBoxLayout(top_bar)
         
-        status = self.controller.get_status()
-        self.status_label = ttk.Label(
-            top_bar, 
-            text=f"● {status['provider'].upper()} ONLINE | {status['permission']}", 
-            foreground="#03dac6",
-            font=("Segoe UI", 10, "bold")
-        )
-        self.status_label.pack(side="right", padx=10)
-
-        # Main Layout: Three Columns
-        content_frame = ttk.Frame(self.root)
-        content_frame.pack(fill="both", expand=True, padx=25, pady=(0, 25))
-
-        # 1. Left Sidebar (Controls)
-        left_sidebar = ttk.Frame(content_frame, width=220)
-        left_sidebar.pack(side="left", fill="y", padx=(0, 20))
+        # Branding
+        brand_label = QLabel("🌙 LUNA-ULTRA")
+        brand_label.setObjectName("Header")
+        top_layout.addWidget(brand_label)
         
-        ttk.Label(left_sidebar, text="CONTROLS", font=("Segoe UI", 10, "bold"), foreground="#bb86fc").pack(anchor="w", pady=(0, 15))
+        top_layout.addStretch()
         
-        # Voice Mode
-        v_frame = ttk.Frame(left_sidebar)
-        v_frame.pack(fill="x", pady=5)
-        ttk.Label(v_frame, text="Voice:").pack(side="left")
-        self.voice_var = tk.BooleanVar(value=self.voice_engine.enabled)
-        ttk.Checkbutton(v_frame, variable=self.voice_var, command=self.toggle_voice).pack(side="right")
+        # Stats
+        self.cpu_label = QLabel("CPU: 0%")
+        self.ram_label = QLabel("RAM: 0%")
+        top_layout.addWidget(self.cpu_label)
+        top_layout.addWidget(self.ram_label)
+        
+        # Status Indicators
+        self.llm_status = QLabel("● LLM: ONLINE")
+        self.llm_status.setStyleSheet("color: #03dac6; font-weight: bold;")
+        top_layout.addWidget(self.llm_status)
+        
+        self.perm_indicator = QLabel(f"LEVEL: {self.controller.config.get('permissions', {}).get('level', 'SAFE')}")
+        self.perm_indicator.setStyleSheet("color: #cf6679; font-weight: bold;")
+        top_layout.addWidget(self.perm_indicator)
+        
+        main_layout.addWidget(top_bar)
 
-        # Voice Selection
-        ttk.Label(left_sidebar, text="Voice Personality:").pack(anchor="w", pady=(15, 5))
-        self.voice_lang_var = tk.StringVar(value="English")
-        voice_menu = ttk.OptionMenu(
-            left_sidebar, 
-            self.voice_lang_var, 
-            "English", 
-            *self.voice_engine.available_langs.keys(),
-            command=self.change_voice
-        )
-        voice_menu.pack(fill="x", pady=5)
-
+        # --- MAIN CONTENT (3 PANELS) ---
+        content_splitter = QSplitter(Qt.Orientation.Horizontal)
+        
+        # 1. LEFT PANEL (Control Center)
+        left_panel = QFrame()
+        left_panel.setObjectName("Panel")
+        left_panel.setFixedWidth(280)
+        left_layout = QVBoxLayout(left_panel)
+        
+        left_layout.addWidget(QLabel("CONTROL CENTER", objectName="SubHeader"))
+        
+        # LLM Config
+        left_layout.addWidget(QLabel("LLM Provider:"))
+        self.provider_combo = QComboBox()
+        self.provider_combo.addItems(["deepseek", "openai", "anthropic", "gemini"])
+        self.provider_combo.setCurrentText(self.controller.config.get('llm', {}).get('default_provider', 'deepseek'))
+        left_layout.addWidget(self.provider_combo)
+        
+        left_layout.addWidget(QLabel("API Key:"))
+        self.api_key_input = QLineEdit()
+        self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
+        self.api_key_input.setPlaceholderText("Enter API Key...")
+        left_layout.addWidget(self.api_key_input)
+        
         # Permission
-        ttk.Label(left_sidebar, text="Access Level:").pack(anchor="w", pady=(15, 5))
-        self.perm_var = tk.StringVar(value=status['permission'])
-        ttk.OptionMenu(left_sidebar, self.perm_var, status['permission'], "SAFE", "STANDARD", "ADVANCED", "ROOT").pack(fill="x", pady=5)
-
-        # System Status Card
-        info_card = tk.Frame(left_sidebar, bg="#1a1f2b", padx=15, pady=15)
-        info_card.pack(fill="x", pady=25)
-        tk.Label(info_card, text="AGENT STATUS", bg="#1a1f2b", fg="#bb86fc", font=("Segoe UI", 9, "bold")).pack(anchor="w")
-        self.user_label = tk.Label(info_card, text=f"User: {status['user']}", bg="#1a1f2b", fg="#9ca3af", font=("Segoe UI", 9)).pack(anchor="w", pady=(5, 0))
-        self.mode_label = tk.Label(info_card, text=f"Mode: {status['mode']}", bg="#1a1f2b", fg="#9ca3af", font=("Segoe UI", 9)).pack(anchor="w")
-
-        # 2. Middle Column (Chat Area)
-        chat_column = ttk.Frame(content_frame)
-        chat_column.pack(side="left", fill="both", expand=True)
+        left_layout.addWidget(QLabel("Permission Level:"))
+        self.perm_combo = QComboBox()
+        self.perm_combo.addItems(["SAFE", "STANDARD", "ADVANCED", "ROOT"])
+        self.perm_combo.setCurrentText(self.controller.config.get('permissions', {}).get('level', 'SAFE'))
+        left_layout.addWidget(self.perm_combo)
         
-        chat_container = tk.Frame(chat_column, bg="#0f172a", highlightbackground="#1e293b", highlightthickness=1)
-        chat_container.pack(fill="both", expand=True)
+        # Module Toggles
+        left_layout.addSpacing(10)
+        left_layout.addWidget(QLabel("MODULES", objectName="SubHeader"))
+        self.voice_toggle = QCheckBox("Voice Interaction")
+        self.voice_toggle.setChecked(self.controller.config.get('gui', {}).get('voice_mode', False))
+        left_layout.addWidget(self.voice_toggle)
         
-        self.chat_display = scrolledtext.ScrolledText(
-            chat_container, 
-            bg="#0f172a", fg="#f1f5f9", font=("Segoe UI", 11),
-            padx=20, pady=20, borderwidth=0, highlightthickness=0
-        )
-        self.chat_display.pack(fill="both", expand=True)
+        self.vision_toggle = QCheckBox("Screen Awareness")
+        self.vision_toggle.setChecked(self.controller.config.get('vision', {}).get('enabled', False))
+        left_layout.addWidget(self.vision_toggle)
+        
+        self.auto_toggle = QCheckBox("Automation")
+        self.auto_toggle.setChecked(True)
+        left_layout.addWidget(self.auto_toggle)
+        
+        # Modes
+        left_layout.addSpacing(10)
+        self.always_on_toggle = QCheckBox("Always-On Mode")
+        left_layout.addWidget(self.always_on_toggle)
+        
+        self.dry_run_toggle = QCheckBox("Dry-Run Mode")
+        left_layout.addWidget(self.dry_run_toggle)
+        
+        left_layout.addStretch()
+        
+        # Apply Button
+        apply_btn = QPushButton("APPLY CONFIG")
+        apply_btn.setObjectName("ActionButton")
+        apply_btn.clicked.connect(self.apply_config)
+        left_layout.addWidget(apply_btn)
+        
+        content_splitter.addWidget(left_panel)
+        
+        # 2. CENTER PANEL (Chat & Reasoning)
+        center_panel = QWidget()
+        center_layout = QVBoxLayout(center_panel)
+        center_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Chat Display
+        self.chat_display = QTextEdit()
+        self.chat_display.setReadOnly(True)
+        self.chat_display.setObjectName("Panel")
+        center_layout.addWidget(self.chat_display, 7)
+        
+        # Reasoning / Thought View
+        self.thought_display = QTextEdit()
+        self.thought_display.setReadOnly(True)
+        self.thought_display.setPlaceholderText("Reasoning process will appear here...")
+        self.thought_display.setMaximumHeight(150)
+        self.thought_display.setStyleSheet("background-color: #1a1f2b; color: #9ca3af; font-style: italic;")
+        center_layout.addWidget(self.thought_display, 2)
         
         # Input Area
-        input_container = tk.Frame(chat_column, bg="#0b0e14", pady=15)
-        input_container.pack(fill="x")
+        input_frame = QHBoxLayout()
+        self.input_field = QLineEdit()
+        self.input_field.setPlaceholderText("Ask LUNA anything...")
+        self.input_field.returnPressed.connect(self.send_message)
+        input_frame.addWidget(self.input_field)
         
-        self.input_field = tk.Entry(
-            input_container, 
-            bg="#1e293b", fg="#ffffff", insertbackground="#bb86fc",
-            borderwidth=0, font=("Segoe UI", 12), highlightbackground="#334155", highlightthickness=1
-        )
-        self.input_field.pack(side="left", fill="x", expand=True, ipady=10, padx=(0, 15))
-        self.input_field.bind("<Return>", self.send_message)
+        send_btn = QPushButton("SEND")
+        send_btn.setObjectName("ActionButton")
+        send_btn.clicked.connect(self.send_message)
+        input_frame.addWidget(send_btn)
         
-        ttk.Button(input_container, text="SEND", style="Action.TButton", command=self.send_message).pack(side="right")
-
-        # 3. Right Sidebar (Manus-style Activity Feed)
-        right_sidebar = ttk.Frame(content_frame, width=350)
-        right_sidebar.pack(side="left", fill="y", padx=(20, 0))
+        center_layout.addLayout(input_frame)
         
-        ttk.Label(right_sidebar, text="LIVE ACTIVITY", font=("Segoe UI", 10, "bold"), foreground="#bb86fc").pack(anchor="w", pady=(0, 15))
+        content_splitter.addWidget(center_panel)
         
-        activity_container = tk.Frame(right_sidebar, bg="#0f172a", highlightbackground="#1e293b", highlightthickness=1)
-        activity_container.pack(fill="both", expand=True)
+        # 3. RIGHT PANEL (Logs & Memory)
+        right_panel = QFrame()
+        right_panel.setObjectName("Panel")
+        right_panel.setFixedWidth(300)
+        right_layout = QVBoxLayout(right_panel)
         
-        self.activity_display = scrolledtext.ScrolledText(
-            activity_container, 
-            bg="#0f172a", fg="#03dac6", font=("Consolas", 10),
-            padx=15, pady=15, borderwidth=0, highlightthickness=0
-        )
-        self.activity_display.pack(fill="both", expand=True)
+        right_layout.addWidget(QLabel("LIVE ACTIVITY", objectName="SubHeader"))
+        self.activity_log = QTextEdit()
+        self.activity_log.setReadOnly(True)
+        self.activity_log.setStyleSheet("font-family: 'Consolas'; font-size: 11px; color: #03dac6;")
+        right_layout.addWidget(self.activity_log)
+        
+        right_layout.addWidget(QLabel("MEMORY SUMMARY", objectName="SubHeader"))
+        self.memory_view = QTextEdit()
+        self.memory_view.setReadOnly(True)
+        self.memory_view.setMaximumHeight(200)
+        right_layout.addWidget(self.memory_view)
+        
+        content_splitter.addWidget(right_panel)
+        
+        main_layout.addWidget(content_splitter)
 
-    def update_activity(self, text: str):
-        self.activity_display.insert(tk.END, f"> {text}\n")
-        self.activity_display.see(tk.END)
+    def setup_signals(self):
+        self.signals.response_received.connect(self.update_chat)
+        self.signals.activity_logged.connect(self.update_activity)
+        self.signals.thought_logged.connect(self.update_thought)
 
-    def change_voice(self, lang_name: str):
-        self.voice_engine.set_language(lang_name)
-        self.update_activity(f"Voice changed to {lang_name}")
+    def start_system_monitors(self):
+        self.stats_timer = QTimer()
+        self.stats_timer.timeout.connect(self.update_stats)
+        self.stats_timer.start(2000)
 
-    def check_for_resume(self):
-        resume_data = self.controller.state_manager.get_resume_data()
-        if resume_data:
-            msg = f"I have a pending task: '{resume_data['current_task']}'. Would you like me to resume?"
-            self.chat_display.insert(tk.END, f"🌙 LUNA: {msg}\n\n")
-            self.voice_engine.speak(msg)
-
-    def toggle_voice(self):
-        self.voice_engine.toggle(self.voice_var.get())
-        state = "Enabled" if self.voice_var.get() else "Disabled"
-        self.chat_display.insert(tk.END, f"SYSTEM: Voice mode {state}\n\n")
-        self.chat_display.see(tk.END)
-
-    def update_permission(self, level):
-        # Update logic here if needed to sync with controller
-        self.chat_display.insert(tk.END, f"SYSTEM: Permission level changed to {level}\n\n")
-        self.chat_display.see(tk.END)
+    def update_stats(self):
+        cpu = psutil.cpu_percent()
+        ram = psutil.virtual_memory().percent
+        self.cpu_label.setText(f"CPU: {cpu}%")
+        self.ram_label.setText(f"RAM: {ram}%")
 
     def display_welcome_message(self):
         welcome = self.controller.config.get('gui', {}).get('welcome_message', "Welcome back, IRFAN.")
-        self.chat_display.insert(tk.END, f"🌙 LUNA: {welcome}\n\n")
-        self.chat_display.see(tk.END)
-        # Voice welcome
+        self.chat_display.append(f"<b style='color: #bb86fc;'>🌙 LUNA:</b> {welcome}")
         self.voice_engine.speak(welcome)
 
-    def send_message(self, event=None):
-        msg = self.input_field.get()
-        if msg:
-            self.chat_display.insert(tk.END, f"You: {msg}\n")
-            self.input_field.delete(0, tk.END)
-            self.chat_display.insert(tk.END, "LUNA: Thinking...\n")
-            self.chat_display.see(tk.END)
+    def send_message(self):
+        text = self.input_field.text().strip()
+        if text:
+            self.chat_display.append(f"<b style='color: #e0e0e0;'>You:</b> {text}")
+            self.input_field.clear()
+            self.thought_display.clear()
+            self.update_activity(f"Processing: {text[:30]}...")
             
-            # Run processing in a separate thread to keep GUI responsive
-            threading.Thread(target=self.process_input_async, args=(msg,), daemon=True).start()
+            # Run in thread
+            threading.Thread(target=self.process_input_async, args=(text,), daemon=True).start()
 
-    def process_input_async(self, msg):
+    def process_input_async(self, text):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        response_data = loop.run_until_complete(self.controller.orchestrator.handle_task(msg))
-        
-        # Extract the actual text response
-        if response_data.get("type") == "chat":
-            response = response_data.get("response", "No response received.")
-        else:
-            # For tool actions, summarize results
-            results = response_data.get("results", [])
-            if results:
-                last_result = results[-1].get("result", {})
-                if last_result.get("success"):
-                    response = f"Task completed successfully. Output: {last_result.get('output', 'Success')}"
-                else:
-                    response = f"Task failed: {last_result.get('error', 'Unknown error')}"
+        try:
+            response_data = loop.run_until_complete(self.controller.orchestrator.handle_task(text))
+            
+            thought = response_data.get("thought", "Analyzing...")
+            self.signals.thought_logged.emit(thought)
+            
+            if response_data.get("type") == "chat":
+                response = response_data.get("response", "No response.")
             else:
-                response = "No actions were performed."
-                
-        self.root.after(0, self.update_chat, response)
+                results = response_data.get("results", [])
+                if results:
+                    last_res = results[-1].get("result", {})
+                    response = f"Task completed. Output: {last_res.get('output', 'Success')}" if last_res.get("success") else f"Error: {last_res.get('error')}"
+                else:
+                    response = "I've processed your request."
+            
+            self.signals.response_received.emit(response)
+        except Exception as e:
+            self.signals.response_received.emit(f"System Error: {str(e)}")
 
     def update_chat(self, response):
-        # Remove the "Thinking..." line before adding response
-        self.chat_display.delete("end-2l", "end-1l")
-        self.chat_display.insert(tk.END, f"🌙 LUNA: {response}\n\n")
-        self.chat_display.see(tk.END)
-        # Speak the response
+        self.chat_display.append(f"<b style='color: #bb86fc;'>🌙 LUNA:</b> {response}")
         self.voice_engine.speak(response)
 
+    def update_activity(self, text):
+        self.activity_log.append(f"> {text}")
+
+    def update_thought(self, text):
+        self.thought_display.setText(text)
+
+    def apply_config(self):
+        # Phase 2 logic will go here
+        new_config = {
+            "llm": {"default_provider": self.provider_combo.currentText()},
+            "permissions": {"level": self.perm_combo.currentText()},
+            "gui": {"voice_mode": self.voice_toggle.isChecked()},
+            "vision": {"enabled": self.vision_toggle.isChecked()}
+        }
+        self.update_activity("Updating configuration...")
+        # Call controller to update
+        self.controller.update_config(new_config)
+        self.perm_indicator.setText(f"LEVEL: {self.perm_combo.currentText()}")
+
     def run(self):
-        self.root.mainloop()
+        self.show()
+        # PyQt6 event loop is handled by the caller or sys.exit(app.exec())
