@@ -1,0 +1,61 @@
+# Path: config/config.yaml
+
+system:
+  name: "JARVIS-CORE"
+  version: "2.0.0-PRO"
+  author: "IRFAN"
+  environment: "production"
+  always_on: true
+  auto_start: true
+  log_level: "DEBUG"
+  heartbeat_interval: 60
+
+llm:
+  active_backend: "ollama"
+  fallback_enabled: true
+  routing_strategy: "performance" # performance, cost, reliability
+  backends:
+    ollama:
+      url: "http://localhost:11434"
+      model: "deepseek-r1:latest"
+      timeout: 60
+    openai:
+      model: "gpt-4-turbo"
+      temperature: 0.7
+    local_llama:
+      path: "models/llama-3-8b.gguf"
+
+security:
+  level: "SAFE"
+  encryption_enabled: true
+  audit_logging: true
+  emergency_kill_switch: "ctrl+alt+k"
+  max_retries: 3
+  session_timeout: 3600
+  restricted_commands:
+    - "rm -rf /"
+    - "mkfs"
+    - "dd"
+  protected_paths:
+    - "/etc"
+    - "/root"
+    - "C:\\Windows\\System32"
+
+modules:
+  voice:
+    enabled: true
+    stt_engine: "whisper-base"
+    tts_engine: "piper-high"
+    wake_word: "Jarvis"
+  vision:
+    enabled: true
+    ocr_engine: "tesseract"
+    object_detection: "yolov8"
+  control:
+    enabled: true
+    allow_mouse: true
+    allow_keyboard: true
+  memory:
+    enabled: true
+    vector_db: "chromadb"
+    short_term_limit: 100
