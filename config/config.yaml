@@ -11,8 +11,8 @@ llm:
     gemini: "YOUR_GEMINI_API_KEY"
 
 permissions:
-  level: STANDARD # Balanced default
-  require_confirmation: true
+  level: ADVANCED # Higher level for smoother execution
+  require_confirmation: false
   blacklist:
     - "rm -rf /"
     - "mkfs"
@@ -34,7 +34,8 @@ memory:
 gui:
   theme: dark
   startup_banner: true
-  window_size: "1000x700"
+  window_size: "1100x750"
+  voice_mode: true
   welcome_message: "LUNA-ULTRA is ready. How can I assist you today, IRFAN?"
 
 user:
