@@ -21,14 +21,16 @@ class Orchestrator:
         from agents.automation_agent import AutomationAgent
         from agents.screen_agent import ScreenAgent
         from agents.system_agent import SystemAgent
-        from agents.dynamic_agent import DynamicAgent # Import DynamicAgent
+        from agents.dynamic_agent import DynamicAgent
+        from agents.architect_agent import ArchitectAgent
 
         # Register agents with their required dependencies
         self.agents["code"] = CodeAgent(self.controller.config, self.controller.llm_router)
         self.agents["automation"] = AutomationAgent(self.controller.config, self.controller.permission_engine)
         self.agents["screen"] = ScreenAgent(self.controller.config, self.controller.permission_engine)
         self.agents["system"] = SystemAgent(self.controller.config)
-        self.agents["dynamic"] = DynamicAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine) # Initialize DynamicAgent
+        self.agents["dynamic"] = DynamicAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine)
+        self.agents["architect"] = ArchitectAgent(self.controller.config, self.controller.llm_router)
         
         logging.info(f"Orchestrator: Initialized {len(self.agents)} agents.")
 
@@ -72,22 +74,36 @@ class Orchestrator:
         logging.info(f"Orchestrator: Handling task: {user_input}")
 
         # Step 1: Intent Classification
-        # Check for simple conversational greetings
-        if user_input.lower().strip() in ["hi", "hello", "hey", "how are you", "what's up", "good morning", "good afternoon", "good evening"]:
+        # Check for simple conversational greetings or pure chat intent
+        greetings = ["hi", "hello", "hey", "how are you", "what's up", "good morning", "good afternoon", "good evening", "thank you", "thanks"]
+        if user_input.lower().strip() in greetings:
             logging.info("Orchestrator: Intent classified as conversation (greeting).")
-            # Directly generate a conversational response without tool planning
             chat_response = await self.controller.llm_router.generate_response(f"Respond to this greeting: {user_input}")
             return {"response": chat_response, "type": "chat"}
 
-        # For other inputs, proceed with tool planning
-        # First, try to get LLM to generate a structured plan for known agents
-        # Step 2: LLM-based Tool Planning (if not a simple conversation)
+        # Step 2: Intent Analysis via LLM to avoid over-aggressive tool usage
+        intent_prompt = (
+            f"Analyze the following user input and determine if it requires a tool action (running code, terminal commands, automation) or if it's just a conversational query/statement.\n"
+            f"User Input: \"{user_input}\"\n"
+            f"Respond with only one word: 'ACTION' or 'CHAT'."
+        )
+        intent_response = await self.controller.llm_router.generate_response(intent_prompt)
+        intent = intent_response.strip().upper()
+        logging.info(f"Orchestrator: Intent classified by LLM as: {intent}")
+
+        if "CHAT" in intent and "ACTION" not in intent:
+            logging.info("Orchestrator: Handling as pure chat.")
+            chat_response = await self.controller.llm_router.generate_response(user_input)
+            return {"response": chat_response, "type": "chat"}
+
+        # Step 3: Tool Planning (if not a simple conversation)
         plan_prompt = (
             f"User Task: {user_input}\n"
             f"Available Agents: {list(self.agents.keys())}. Prioritize specific agents over dynamic agent if applicable.\n"
-            f"Generate a JSON list of steps with 'agent', 'action', and 'params'."
-            f"If no specific agent can handle the task, use the 'dynamic' agent with action 'generate_and_execute' and pass the original task description.\n"
-            f"If the user input is a general conversational query and does not require tool execution, respond with an empty JSON list: [].\n"
+            f"Generate a JSON list of steps with 'agent', 'action', and 'params'.\n"
+            f"If the task requires running commands or writing code, use the appropriate agent.\n"
+            f"If no specific agent can handle the task, use the 'dynamic' agent with action 'generate_and_execute'.\n"
+            f"IMPORTANT: If the user input is just a message and DOES NOT require any system action, return an empty list [].\n"
             f"Example for dynamic agent: [{{'agent': 'dynamic', 'action': 'generate_and_execute', 'params': {{'task_description': 'original task', 'available_tools': {{'python': True, 'bash': True}}}}}}]"
         )
         plan_response_str = await self.controller.llm_router.generate_response(plan_prompt)
@@ -97,33 +113,38 @@ class Orchestrator:
             json_match = re.search(r"\[.*\]", plan_response_str, re.DOTALL)
             if json_match:
                 plan = json.loads(json_match.group(0))
-            else:
-                logging.warning("Orchestrator: No structured plan found. Deferring to dynamic agent.")
-                plan = [{
-                    "agent": "dynamic", 
-                    "action": "generate_and_execute", 
-                    "params": {
-                        "task_description": user_input,
-                        "available_tools": {"python": True, "bash": True}
-                    }
-                }]
         except json.JSONDecodeError as e:
-            logging.error(f"Orchestrator: Plan parsing error: {str(e)}. Deferring to dynamic agent.")
-            plan = [{
-                "agent": "dynamic", 
-                "action": "generate_and_execute", 
-                "params": {
-                    "task_description": user_input,
-                    "available_tools": {"python": True, "bash": True}
-                }
-            }]
+            logging.error(f"Orchestrator: Plan parsing error: {str(e)}")
 
         # Execute plan
         if plan:
-            logging.info("Orchestrator: Intent classified as tool_action. Executing plan.")
-            execution_results = await self.execute_plan(plan)
+            logging.info(f"Orchestrator: Executing plan with {len(plan)} steps.")
+            self.controller.state_manager.update_task(user_input, plan)
+            execution_results = []
+            
+            for step in plan:
+                # Update GUI with current action (Manus-style)
+                if hasattr(self.controller, 'gui') and self.controller.gui:
+                    self.controller.gui.update_activity(f"Executing: {step.get('agent')} -> {step.get('action')}")
+                
+                agent_name = step.get("agent")
+                action = step.get("action")
+                params = step.get("params", {})
+                
+                try:
+                    result = await self.agents[agent_name].execute(action, params)
+                    execution_results.append({"step": step, "result": result})
+                    self.controller.state_manager.complete_step(result)
+                    
+                    if not result.get("success") and step.get("critical", True):
+                        logging.error(f"Orchestrator: Critical failure in step {step}. Aborting.")
+                        break
+                except Exception as e:
+                    logging.error(f"Orchestrator: Error in agent {agent_name}: {str(e)}")
+                    break
+
             return {"plan": plan, "results": execution_results, "type": "tool_action"}
         else:
-            logging.info("Orchestrator: Intent classified as conversation (LLM-based). Generating chat response.")
+            logging.info("Orchestrator: No plan generated. Falling back to chat response.")
             chat_response = await self.controller.llm_router.generate_response(user_input)
             return {"response": chat_response, "type": "chat"}

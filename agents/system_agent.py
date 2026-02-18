@@ -1,6 +1,6 @@
 # Path: agents/system_agent.py
 import os
-import psutil
+# import psutil
 from typing import Dict, Any
 
 class SystemAgent:
@@ -12,9 +12,9 @@ class SystemAgent:
 
     async def execute(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         if action == "get_health":
-            cpu = psutil.cpu_percent()
-            ram = psutil.virtual_memory().percent
-            return {"success": True, "cpu": cpu, "ram": ram}
+            # cpu = psutil.cpu_percent()
+            # ram = psutil.virtual_memory().percent
+            return {"success": True, "cpu": "N/A", "ram": "N/A"}
         elif action == "list_files":
             path = params.get('path', '.')
             files = os.listdir(path)
