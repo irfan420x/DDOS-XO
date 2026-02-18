@@ -10,11 +10,18 @@ llm:
     gemini: "YOUR_GEMINI_API_KEY"
 
 permissions:
-  level: SAFE
+  level: STANDARD # Balanced default
   require_confirmation: true
+  blacklist:
+    - "rm -rf /"
+    - "mkfs"
+    - "dd if=/dev/zero"
+    - "sudo rm"
+    - "chmod 777"
+    - ":(){ :|:& };:"
 
 vision:
-  enabled: false
+  enabled: true # Enabled by default now
   emotion_detection: false
   ocr_engine: "tesseract"
 
@@ -27,16 +34,16 @@ gui:
   theme: dark
   startup_banner: true
   window_size: "1000x700"
+  welcome_message: "LUNA-ULTRA is ready. How can I assist you today, IRFAN?"
 
 user:
   name: "IRFAN"
 
 automation:
   timeout: 60
+  execution_timeout: 30
+  max_retries: 3 # Added for code agent
 
 security:
-  blacklist:
-    - "rm -rf /"
-    - "mkfs"
-    - "dd if=/dev/zero"
-    - "sudo rm"
+  audit_logging: true
+  sandbox_enabled: true
