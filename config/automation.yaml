@@ -1,0 +1,9 @@
+automation:
+  telegram:
+    enabled: true
+    token: "8140462013:AAEojO-aBUvetf8ERoWfs33jfa9IXq8OxeM"
+  
+  execution:
+    timeout: 30
+    max_retries: 3
+    allow_shell: true

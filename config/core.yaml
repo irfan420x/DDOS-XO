@@ -1,0 +1,14 @@
+system:
+  name: "LUNA-ULTRA"
+  version: "2.0.0"
+  environment: "production"
+
+user:
+  name: "IRFAN"
+  telegram_id: "7429947930"
+
+gui:
+  theme: "dark"
+  startup_banner: true
+  window_size: "1100x750"
+  welcome_message: "LUNA-ULTRA System Online. Welcome back, IRFAN."

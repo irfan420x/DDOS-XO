@@ -1,0 +1,8 @@
+pyyaml
+requests
+openai
+pydantic
+aiohttp
+python-dotenv
+psutil
+bc

@@ -29,6 +29,9 @@ async def main():
     # 2. Initialize System
     controller = await bootstrap.initialize_system()
     
+    # Start background services (Telegram, etc.)
+    await controller.start_services()
+    
     # 3. Display Startup Banner (Console)
     from app.startup_banner import StartupBanner
     StartupBanner.display(controller.config)
@@ -39,8 +42,7 @@ async def main():
     # 5. Run in CLI mode if --cli argument is provided
     if "--cli" in sys.argv:
         logging.info("LUNA-ULTRA: Running in CLI mode.")
-        print("LUNA-ULTRA CLI Mode. Type 'exit' to quit.")
-        while True:
+        print("LUNA-ULTRA CLI Mode. Type 'exit' to quit."        while True:
             try:
                 user_input = await asyncio.to_thread(input, "You: ")
                 if user_input.lower() == 'exit':
@@ -52,9 +54,8 @@ async def main():
             except Exception as e:
                 logging.error(f"LUNA-ULTRA CLI Error: {str(e)}")
                 print(f"LUNA: An error occurred: {str(e)}")
-        await lifecycle.shutdown()
-    else:
-        # 5. Initialize GUI (Tkinter)
+        await controller.shutdown_services()
+        await lifecycle.shutdown()nter)
         # Note: In some environments, GUI might need to run in the main thread
         from gui.main_window import LunaGUI # Import here to avoid error if not running GUI
         logging.info("LUNA-ULTRA: Launching GUI...")
@@ -65,9 +66,11 @@ async def main():
             gui.run()
         except KeyboardInterrupt:
             logging.info("LUNA-ULTRA: Shutdown signal received.")
+            await controller.shutdown_services()
             await lifecycle.shutdown()
         except Exception as e:
             logging.error(f"LUNA-ULTRA: Fatal error: {str(e)}")
+            await controller.shutdown_services()
             await lifecycle.shutdown()
             sys.exit(1)
 
