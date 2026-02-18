@@ -1,10 +1,11 @@
 # Path: config/config.yaml
 llm:
   mode: api
+  base_url: "https://api.deepseek.com"
   default_provider: deepseek
   fallback_enabled: true
   api_keys:
-    deepseek: "YOUR_DEEPSEEK_API_KEY"
+    deepseek: "sk-15b0ddf886024792901ccc7123501623"
     openai: "YOUR_OPENAI_API_KEY"
     anthropic: "YOUR_ANTHROPIC_API_KEY"
     gemini: "YOUR_GEMINI_API_KEY"
@@ -44,6 +45,9 @@ automation:
   execution_timeout: 30
   max_retries: 3 # Added for code agent
 
+dynamic_agent:
+  max_generation_retries: 3 # Allow more retries for dynamic code generation
+
 security:
   audit_logging: true
-  sandbox_enabled: true
+  sandbox_enabled: true # Ensure sandbox is enabled

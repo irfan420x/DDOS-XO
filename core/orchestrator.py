@@ -1,6 +1,8 @@
 # Path: core/orchestrator.py
 from typing import Dict, Any, List, Optional
 import logging
+import json
+import re
 
 class Orchestrator:
     """
@@ -19,12 +21,14 @@ class Orchestrator:
         from agents.automation_agent import AutomationAgent
         from agents.screen_agent import ScreenAgent
         from agents.system_agent import SystemAgent
+        from agents.dynamic_agent import DynamicAgent # Import DynamicAgent
 
         # Register agents with their required dependencies
-        self.agents['code'] = CodeAgent(self.controller.config, self.controller.llm_router)
-        self.agents['automation'] = AutomationAgent(self.controller.config, self.controller.permission_engine)
-        self.agents['screen'] = ScreenAgent(self.controller.config, self.controller.permission_engine)
-        self.agents['system'] = SystemAgent(self.controller.config)
+        self.agents["code"] = CodeAgent(self.controller.config, self.controller.llm_router)
+        self.agents["automation"] = AutomationAgent(self.controller.config, self.controller.permission_engine)
+        self.agents["screen"] = ScreenAgent(self.controller.config, self.controller.permission_engine)
+        self.agents["system"] = SystemAgent(self.controller.config)
+        self.agents["dynamic"] = DynamicAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine) # Initialize DynamicAgent
         
         logging.info(f"Orchestrator: Initialized {len(self.agents)} agents.")
 
@@ -34,9 +38,9 @@ class Orchestrator:
         """
         results = []
         for step in plan:
-            agent_name = step.get('agent')
-            action = step.get('action')
-            params = step.get('params', {})
+            agent_name = step.get("agent")
+            action = step.get("action")
+            params = step.get("params", {})
             
             logging.info(f"Orchestrator: Executing step - Agent: {agent_name}, Action: {action}")
             
@@ -60,27 +64,49 @@ class Orchestrator:
                 
         return results
 
-    async def handle_task(self, task_description: str) -> Dict[str, Any]:
+    async def handle_task(self, user_input: str) -> Dict[str, Any]:
         """
         High-level task handler: Plan -> Execute -> Report.
+        If no specific agent is identified, defer to DynamicAgent.
         """
-        # 1. Generate plan using LLM
-        plan_prompt = f"User Task: {task_description}\nAvailable Agents: {list(self.agents.keys())}\nGenerate a JSON list of steps with 'agent', 'action', and 'params'."
-        plan_response = await self.controller.llm_router.generate_response(plan_prompt)
+        logging.info(f"Orchestrator: Handling task: {user_input}")
+
+        # First, try to get LLM to generate a structured plan for known agents
+        plan_prompt = (
+            f"User Task: {user_input}\n"
+            f"Available Agents: {list(self.agents.keys())}. Prioritize specific agents over dynamic agent if applicable.\n"
+            f"Generate a JSON list of steps with 'agent', 'action', and 'params'."
+            f"If no specific agent can handle the task, use the 'dynamic' agent with action 'generate_and_execute' and pass the original task description."
+            f"Example for dynamic agent: [{{'agent': 'dynamic', 'action': 'generate_and_execute', 'params': {{'task_description': 'original task', 'available_tools': {{'python': True, 'bash': True}}}}}}]"
+        )
+        plan_response_str = await self.controller.llm_router.generate_response(plan_prompt)
         
-        # 2. Parse plan (simplified for demo)
-        import json
+        plan = []
         try:
-            # Extract JSON from response
-            import re
-            json_match = re.search(r"\[.*\]", plan_response, re.DOTALL)
+            json_match = re.search(r"\[.*\]", plan_response_str, re.DOTALL)
             if json_match:
                 plan = json.loads(json_match.group(0))
             else:
-                return {"error": "Failed to generate a valid execution plan."}
-        except Exception as e:
-            return {"error": f"Plan parsing error: {str(e)}"}
+                logging.warning("Orchestrator: No structured plan found. Deferring to dynamic agent.")
+                plan = [{
+                    "agent": "dynamic", 
+                    "action": "generate_and_execute", 
+                    "params": {
+                        "task_description": user_input,
+                        "available_tools": {"python": True, "bash": True}
+                    }
+                }]
+        except json.JSONDecodeError as e:
+            logging.error(f"Orchestrator: Plan parsing error: {str(e)}. Deferring to dynamic agent.")
+            plan = [{
+                "agent": "dynamic", 
+                "action": "generate_and_execute", 
+                "params": {
+                    "task_description": user_input,
+                    "available_tools": {"python": True, "bash": True}
+                }
+            }]
 
-        # 3. Execute plan
+        # Execute plan
         execution_results = await self.execute_plan(plan)
         return {"plan": plan, "results": execution_results}
