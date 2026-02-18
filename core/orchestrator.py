@@ -71,12 +71,23 @@ class Orchestrator:
         """
         logging.info(f"Orchestrator: Handling task: {user_input}")
 
+        # Step 1: Intent Classification
+        # Check for simple conversational greetings
+        if user_input.lower().strip() in ["hi", "hello", "hey", "how are you", "what's up", "good morning", "good afternoon", "good evening"]:
+            logging.info("Orchestrator: Intent classified as conversation (greeting).")
+            # Directly generate a conversational response without tool planning
+            chat_response = await self.controller.llm_router.generate_response(f"Respond to this greeting: {user_input}")
+            return {"response": chat_response, "type": "chat"}
+
+        # For other inputs, proceed with tool planning
         # First, try to get LLM to generate a structured plan for known agents
+        # Step 2: LLM-based Tool Planning (if not a simple conversation)
         plan_prompt = (
             f"User Task: {user_input}\n"
             f"Available Agents: {list(self.agents.keys())}. Prioritize specific agents over dynamic agent if applicable.\n"
             f"Generate a JSON list of steps with 'agent', 'action', and 'params'."
-            f"If no specific agent can handle the task, use the 'dynamic' agent with action 'generate_and_execute' and pass the original task description."
+            f"If no specific agent can handle the task, use the 'dynamic' agent with action 'generate_and_execute' and pass the original task description.\n"
+            f"If the user input is a general conversational query and does not require tool execution, respond with an empty JSON list: [].\n"
             f"Example for dynamic agent: [{{'agent': 'dynamic', 'action': 'generate_and_execute', 'params': {{'task_description': 'original task', 'available_tools': {{'python': True, 'bash': True}}}}}}]"
         )
         plan_response_str = await self.controller.llm_router.generate_response(plan_prompt)
@@ -108,5 +119,11 @@ class Orchestrator:
             }]
 
         # Execute plan
-        execution_results = await self.execute_plan(plan)
-        return {"plan": plan, "results": execution_results}
+        if plan:
+            logging.info("Orchestrator: Intent classified as tool_action. Executing plan.")
+            execution_results = await self.execute_plan(plan)
+            return {"plan": plan, "results": execution_results, "type": "tool_action"}
+        else:
+            logging.info("Orchestrator: Intent classified as conversation (LLM-based). Generating chat response.")
+            chat_response = await self.controller.llm_router.generate_response(user_input)
+            return {"response": chat_response, "type": "chat"}
