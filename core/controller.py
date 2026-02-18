@@ -25,6 +25,8 @@ class LunaController:
         
         # Core Components
         self.llm_router = LLMRouter(self.config.get("llm", {}))
+        from core.personality_engine import PersonalityEngine
+        self.personality_engine = PersonalityEngine(self.config)
         self.permission_engine = PermissionEngine(self.config.get("security", {}))
         self.sandbox_executor = SandboxExecutor(self.config.get("security", {}), self.permission_engine)
         self.memory_manager = MemoryManager(self.config.get("features", {}).get("memory", {}))
@@ -123,11 +125,18 @@ class LunaController:
             
         # 2. Update LLM Router if needed
         if "llm" in new_config:
+            self.llm_router.mode = self.config["llm"].get("mode", "api")
             self.llm_router.default_provider = self.config["llm"].get("default_provider", "deepseek")
+            self.llm_router.enforce_personality = self.config["llm"].get("enforce_personality", True)
             if "api_keys" in new_config["llm"]:
                 for provider, key in new_config["llm"]["api_keys"].items():
                     if provider in self.llm_router.providers:
                         self.llm_router.providers[provider].api_key = key
+        
+        # 2.1 Update Personality Engine if needed
+        if "personality" in new_config:
+            self.personality_engine.profile = self.config["personality"].get("profile", "professional")
+            self.llm_router.personality_engine.profile = self.personality_engine.profile
         
         # 3. Update Permission Engine if needed
         if "permissions" in new_config or "security" in new_config:

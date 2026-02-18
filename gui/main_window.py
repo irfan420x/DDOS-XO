@@ -95,11 +95,23 @@ class LunaGUI(QMainWindow):
         left_layout.addWidget(QLabel("CONTROL CENTER", objectName="SubHeader"))
         
         # LLM Config
+        left_layout.addWidget(QLabel("LLM Mode:"))
+        self.mode_combo = QComboBox()
+        self.mode_combo.addItems(["api", "local", "hybrid"])
+        self.mode_combo.setCurrentText(self.controller.config.get('llm', {}).get('mode', 'api'))
+        left_layout.addWidget(self.mode_combo)
+
         left_layout.addWidget(QLabel("LLM Provider:"))
         self.provider_combo = QComboBox()
         self.provider_combo.addItems(["deepseek", "openai", "anthropic", "gemini"])
         self.provider_combo.setCurrentText(self.controller.config.get('llm', {}).get('default_provider', 'deepseek'))
         left_layout.addWidget(self.provider_combo)
+
+        left_layout.addWidget(QLabel("Personality Profile:"))
+        self.profile_combo = QComboBox()
+        self.profile_combo.addItems(["professional", "hacker", "friendly", "minimal"])
+        self.profile_combo.setCurrentText(self.controller.config.get('personality', {}).get('profile', 'professional'))
+        left_layout.addWidget(self.profile_combo)
         
         left_layout.addWidget(QLabel("API Key:"))
         self.api_key_input = QLineEdit()
@@ -270,17 +282,21 @@ class LunaGUI(QMainWindow):
         self.thought_display.setText(text)
 
     def apply_config(self):
-        # Phase 2 logic will go here
         new_config = {
-            "llm": {"default_provider": self.provider_combo.currentText()},
+            "llm": {
+                "mode": self.mode_combo.currentText(),
+                "default_provider": self.provider_combo.currentText()
+            },
+            "personality": {"profile": self.profile_combo.currentText()},
             "permissions": {"level": self.perm_combo.currentText()},
             "gui": {"voice_mode": self.voice_toggle.isChecked()},
             "vision": {"enabled": self.vision_toggle.isChecked()}
         }
-        self.update_activity("Updating configuration...")
+        self.update_activity(f"Updating configuration: {new_config['llm']['mode']} | {new_config['personality']['profile']}")
         # Call controller to update
         self.controller.update_config(new_config)
         self.perm_indicator.setText(f"LEVEL: {self.perm_combo.currentText()}")
+        self.llm_status.setText(f"● LLM: {self.mode_combo.currentText().upper()}")
 
     def run(self):
         self.show()

@@ -9,19 +9,22 @@
 
 LUNA-ULTRA is a next-generation autonomous agent designed for full OS control and project architecture. This v2.0 upgrade transforms LUNA into a modern AI Control Center with a PyQt6 dashboard, hardened security, and natural voice interaction.
 
-## 🚀 Key Features (v2.0)
-- **Modern 3-Panel Dashboard**: Redesigned PyQt6 GUI with real-time system monitoring (CPU/RAM), LLM status, and permission indicators.
-- **Dynamic Configuration**: Update LLM providers, API keys, and permission levels directly from the GUI without restarting.
-- **Hardened Security**: 
-    - **Regex-based Blacklist**: Prevents dangerous commands with advanced pattern matching.
-    - **Secure ShellExecutor**: No `shell=True` fallback, shlex-based command splitting, and dry-run mode.
-    - **Audit Logging**: Detailed security logs for all sensitive actions.
-- **Natural Voice Control**: 
-    - **Wake Word**: Responds to "LUNA".
-    - **Natural TTS**: Human-like reactions using gTTS.
-    - **STT Integration**: Speech-to-text for hands-free operation.
-- **Reasoning View**: Dedicated panel to see LUNA's internal thought process and planning.
+## 🚀 Key Features (v2.1 Upgrade)
+- **Central Personality Engine**: Enforces LUNA's identity and tone across all LLM calls. Supports multiple profiles (Professional, Hacker, Friendly, Minimal).
+- **Unified LLM Abstraction**: Supports **API**, **Local** (Ollama/Llama.cpp), and **Hybrid** modes with consistent behavior.
+- **Personality Validation Layer**: Automatically detects and corrects identity drift or character breaks in LLM responses.
+- **Modern 3-Panel Dashboard**: PyQt6 GUI with real-time system monitoring, LLM mode selectors, and personality profile indicators.
+- **Hardened Security**: Regex-based blacklist, secure ShellExecutor (no `shell=True`), and detailed audit logging.
+- **Natural Voice Control**: Wake word ("LUNA"), natural-sounding TTS (gTTS), and STT integration.
 - **Self-Healing Code Loop**: Automatically detects and fixes errors in generated code.
+
+## 🧠 Personality & LLM Modes
+- **API Mode**: Uses high-performance models like DeepSeek, OpenAI, or Anthropic.
+- **Local Mode**: Uses Ollama or llama.cpp for privacy and offline use. LUNA ensures the same personality even on local models.
+- **Hybrid Mode**: Dynamically switches between local and API based on task complexity.
+- **Personality Profiles**: Customize LUNA's tone (e.g., Hacker mode for technical tasks, Friendly for general assistance).
+
+> **Warning**: Editing `config/system_prompt.txt` changes LUNA's core identity. Use with caution.
 
 ## 🛠️ Installation & Run
 1. **Clone the repository**:
