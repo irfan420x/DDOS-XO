@@ -8,9 +8,10 @@ class ArchitectAgent:
     """
     LUNA-ULTRA Architect Agent: Plans and builds multi-file projects.
     """
-    def __init__(self, config: Dict[str, Any], llm_router: LLMRouter):
+    def __init__(self, config: Dict[str, Any], llm_router: LLMRouter, permission_engine: Any = None):
         self.config = config
         self.llm_router = llm_router
+        self.permission_engine = permission_engine
 
     async def execute(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
         if action == "plan_project":
@@ -76,6 +77,11 @@ class ArchitectAgent:
             return {"success": False, "error": str(e)}
 
     async def write_file(self, path: str, content: str) -> Dict[str, Any]:
+        # Permission Check
+        if self.permission_engine:
+            if not self.permission_engine.check_permission("write_file", f"Write to {path}"):
+                return {"success": False, "error": "Permission Denied by LUNA Security Engine."}
+
         try:
             dir_name = os.path.dirname(path)
             if dir_name:

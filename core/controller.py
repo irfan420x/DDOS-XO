@@ -61,6 +61,11 @@ class LunaController:
         self.skill_manager = SkillManager()
         self.orchestrator = Orchestrator(self)
         
+        # Master Orchestrator & Resume Engine (v2.5)
+        from core.master_orchestrator import MasterOrchestrator
+        self.master_orchestrator = MasterOrchestrator(self)
+        self.resume_engine = self.master_orchestrator.resume_engine
+        
         # Optional Modules (Loaded Safely)
         self.telegram = self.init_optional_module("automation.telegram_controller", "TelegramController", self)
         self.vision_loop = self.init_optional_module("vision.vision_loop", "VisionLoop", self)
@@ -120,10 +125,25 @@ class LunaController:
 
     async def process_input(self, user_input: str) -> str:
         """Central entry point for user input."""
+        
+        # 1. Check for Token Limit Error in previous response
+        # (Simplified: If user says 'resume' or if we detect a saved state)
+        if user_input.lower() == "resume" and self.master_orchestrator.state_manager.has_active_execution():
+            logging.info("LunaController: Resuming previous task...")
+            resume_result = await self.resume_engine.resume_execution()
+            return f"Resumed: {resume_result.get('message', 'Task in progress...')}"
+
+        # 2. Normal Task Handling
         response_data = await self.orchestrator.handle_task(user_input)
         
         if response_data.get("type") == "chat":
             response = response_data.get("response")
+            
+            # 3. Auto-detect Token Limit Error from LLM response
+            if "TOKEN_LIMIT_ERROR" in response:
+                logging.warning("LunaController: Token limit detected. Saving state for resume.")
+                await self.resume_engine.handle_token_limit_error(response)
+                return "I've hit a token limit, but I've saved my progress. Type 'resume' to continue from where I left off."
         else:
             # Handle tool execution results
             results = response_data.get("results", [])

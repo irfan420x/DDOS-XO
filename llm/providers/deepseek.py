@@ -25,6 +25,13 @@ class DeepSeekProvider:
         
         try:
             response = requests.post(f"{self.base_url}/chat/completions", headers=headers, json=data, timeout=60)
+            
+            if response.status_code == 400:
+                error_data = response.json()
+                error_msg = error_data.get("error", {}).get("message", "")
+                if "context_length_exceeded" in error_msg or "token_limit" in error_msg:
+                    return f"TOKEN_LIMIT_ERROR: {error_msg}"
+            
             response.raise_for_status()
             return response.json()["choices"][0]["message"]["content"]
         except Exception as e:

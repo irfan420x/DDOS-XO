@@ -26,7 +26,7 @@ class Orchestrator:
         self.agents["screen"] = ScreenAgent(self.controller.config, self.controller.permission_engine)
         self.agents["system"] = SystemAgent(self.controller.config)
         self.agents["dynamic"] = DynamicAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine)
-        self.agents["architect"] = ArchitectAgent(self.controller.config, self.controller.llm_router)
+        self.agents["architect"] = ArchitectAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine)
         
         logging.info(f"Orchestrator: Initialized {len(self.agents)} agents.")
 
@@ -84,21 +84,45 @@ class Orchestrator:
 
         # 4. Execution (with Self-Reflective Thought Loop)
         if plan:
+            # Initialize state for potential resume
+            if hasattr(self.controller, 'master_orchestrator'):
+                self.controller.master_orchestrator.state_manager.initialize_execution(user_input, {"steps": plan})
+
             # Use ThoughtLoop for complex tasks or if multiple steps are involved
             if len(plan) > 1 or intent in ["CODING", "AUTOMATION"]:
                 if hasattr(self.controller, 'gui') and self.controller.gui:
                     self.controller.gui.update_activity("🧠 LUNA: Entering Thought Loop for self-reflection...")
                 loop_result = await self.controller.thought_loop.run_with_reflection(user_input, plan)
+                
+                # Mark complete if successful
+                if hasattr(self.controller, 'master_orchestrator'):
+                    self.controller.master_orchestrator.state_manager.mark_execution_complete(loop_result.get("success", False))
+                
                 return {"plan": plan, "results": loop_result.get("results"), "type": "tool_action", "thought": thought, "success": loop_result.get("success")}
             
             # Simple execution for single steps
             results = []
-            for step in plan:
+            for idx, step in enumerate(plan):
                 agent = self.agents.get(step.get("agent"))
                 if agent:
+                    # Update state
+                    if hasattr(self.controller, 'master_orchestrator'):
+                        self.controller.master_orchestrator.state_manager.update_current_step(idx)
+                    
                     res = await agent.execute(step.get("action"), step.get("params", {}))
                     results.append({"step": step, "result": res})
+                    
+                    # Mark step complete
+                    if hasattr(self.controller, 'master_orchestrator'):
+                        self.controller.master_orchestrator.state_manager.mark_step_complete(idx, res.get("success", False), res)
+                    
                     if not res.get("success"): break
+            
+            # Mark execution complete
+            if hasattr(self.controller, 'master_orchestrator'):
+                success = all(r.get("result", {}).get("success", False) for r in results)
+                self.controller.master_orchestrator.state_manager.mark_execution_complete(success)
+
             return {"plan": plan, "results": results, "type": "tool_action", "thought": thought}
         
         return {"response": "I understood your request but couldn't form a plan.", "type": "chat"}
