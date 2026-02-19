@@ -43,6 +43,21 @@ class LunaController:
         self.thought_loop = ThoughtLoop(self)
         self.system_health = SystemHealth(self)
         self.skill_acquisition = SkillAcquisition(self)
+        
+        # GitHub & Validation (v2.4)
+        from core.github_manager import GitHubManager
+        from core.validation_loop import ValidationLoop
+        from core.task_queue import TaskQueue, CostMonitor, RiskScoringEngine
+        from plugins.loader import PluginLoader
+        
+        self.github_manager = GitHubManager(self)
+        self.validation_loop = ValidationLoop(self)
+        self.task_queue = TaskQueue(self)
+        self.cost_monitor = CostMonitor(self)
+        self.risk_engine = RiskScoringEngine(self)
+        self.plugin_loader = PluginLoader(self)
+        self.plugin_loader.load_all()
+        
         self.skill_manager = SkillManager()
         self.orchestrator = Orchestrator(self)
         

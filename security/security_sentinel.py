@@ -39,8 +39,11 @@ class SecuritySentinel:
         """Gets currently open TCP ports using netstat."""
         ports = set()
         try:
-            # Command works on both Linux and Windows (with slight variations, handled here for Linux)
-            output = subprocess.check_output("netstat -tunlp | grep LISTEN", shell=True).decode()
+            # Hardened: Using list for subprocess to avoid shell=True
+            p1 = subprocess.Popen(["netstat", "-tunlp"], stdout=subprocess.PIPE)
+            p2 = subprocess.Popen(["grep", "LISTEN"], stdin=p1.stdout, stdout=subprocess.PIPE)
+            p1.stdout.close()
+            output = p2.communicate()[0].decode()
             for line in output.splitlines():
                 parts = line.split()
                 if len(parts) > 3:
@@ -90,8 +93,11 @@ class SecuritySentinel:
     async def check_auth_logs(self):
         """Scans auth logs for suspicious login attempts."""
         try:
-            # Check last 10 lines for 'Failed password'
-            output = subprocess.check_output("tail -n 10 /var/log/auth.log | grep 'Failed password'", shell=True).decode()
+            # Hardened: Using list for subprocess to avoid shell=True
+            p1 = subprocess.Popen(["tail", "-n", "10", "/var/log/auth.log"], stdout=subprocess.PIPE)
+            p2 = subprocess.Popen(["grep", "Failed password"], stdin=p1.stdout, stdout=subprocess.PIPE)
+            p1.stdout.close()
+            output = p2.communicate()[0].decode()
             if output:
                 msg = "🚨 SECURITY ALERT: Multiple failed login attempts detected in auth.log!"
                 await self.notify(msg)

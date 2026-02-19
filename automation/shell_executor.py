@@ -47,19 +47,6 @@ class ShellExecutor:
         except subprocess.TimeoutExpired:
             return {"success": False, "error": f"Command timed out after {self.timeout} seconds."}
         except Exception as e:
-            # 4. Secure Fallback (Only if absolutely necessary and not blocked)
-            if "|" in command or ">" in command or ";" in command:
-                import logging
-                logging.warning(f"ShellExecutor: Complex command detected, using shell=True with caution: {command}")
-                try:
-                    result = subprocess.run(
-                        command, 
-                        shell=True, 
-                        capture_output=True, 
-                        text=True, 
-                        timeout=self.timeout
-                    )
-                    return {"success": result.returncode == 0, "stdout": result.stdout, "stderr": result.stderr}
-                except Exception as e2:
-                    return {"success": False, "error": str(e2)}
-            return {"success": False, "error": str(e)}
+            # 4. Hardened: No shell=True fallback. Complex commands must be split or handled by Sandbox.
+            logging.error(f"ShellExecutor: Command failed or is too complex for direct execution: {e}")
+            return {"success": False, "error": f"Execution failed: {str(e)}. Complex commands (pipes/redirects) are blocked for security."}

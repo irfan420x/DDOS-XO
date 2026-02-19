@@ -80,13 +80,14 @@ class SandboxExecutor:
 
     async def _execute_bash_in_sandbox(self, command: str) -> Dict[str, Any]:
         try:
-            # Use shlex to safely split command if not using shell=True
-            # For now, using shell=True for simplicity but logging it as a risk
-            logging.warning("Sandbox: Executing bash command with shell=True. Consider hardening.")
-            process = await asyncio.create_subprocess_shell(
-                command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE
+            # Hardened Execution: Using shlex to safely split command and avoid shell=True
+            import shlex
+            import asyncio
+            cmd_parts = shlex.split(command)
+            process = await asyncio.create_subprocess_exec(
+                *cmd_parts,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
             )
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=self.timeout)
 
@@ -122,7 +123,9 @@ class SandboxExecutor:
     async def _execute_bash_direct(self, command: str) -> Dict[str, Any]:
         # Direct execution without sandbox features (for disabled sandbox)
         try:
-            result = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=self.timeout)
+            import shlex
+            cmd_parts = shlex.split(command)
+            result = subprocess.run(cmd_parts, capture_output=True, text=True, timeout=self.timeout)
             return {"success": result.returncode == 0, "stdout": result.stdout, "stderr": result.stderr}
         except subprocess.TimeoutExpired:
             return {"success": False, "error": f"Bash command timed out after {self.timeout} seconds."}
