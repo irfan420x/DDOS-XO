@@ -15,11 +15,31 @@ class SystemAgent:
         if action == "get_health":
             return {"success": True, "cpu": "N/A", "ram": "N/A"}
         
-        elif action == "list_files":
+        elif action in ["list_files", "list_directory"]:
             path = params.get('path', '.')
             try:
                 files = os.listdir(path)
-                return {"success": True, "files": files}
+                return {"success": True, "files": files, "output": f"Files in {path}: {', '.join(files)}"}
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+        
+        elif action == "get_system_info":
+            import platform
+            info = {
+                "os": platform.system(),
+                "version": platform.version(),
+                "machine": platform.machine(),
+                "processor": platform.processor(),
+                "cwd": os.getcwd()
+            }
+            return {"success": True, "info": info, "output": f"System Status: {info['os']} {info['version']} | CWD: {info['cwd']}"}
+            
+        elif action == "create_directory":
+            path = params.get('path')
+            if not path: return {"success": False, "error": "No path provided"}
+            try:
+                os.makedirs(path, exist_ok=True)
+                return {"success": True, "message": f"Directory {path} created.", "output": f"I have successfully created the directory: {path}"}
             except Exception as e:
                 return {"success": False, "error": str(e)}
         
