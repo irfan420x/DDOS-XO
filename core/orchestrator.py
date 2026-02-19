@@ -86,7 +86,8 @@ class Orchestrator:
         if plan:
             # Use ThoughtLoop for complex tasks or if multiple steps are involved
             if len(plan) > 1 or intent in ["CODING", "AUTOMATION"]:
-                self.controller.gui.update_activity("🧠 LUNA: Entering Thought Loop for self-reflection...")
+                if hasattr(self.controller, 'gui') and self.controller.gui:
+                    self.controller.gui.update_activity("🧠 LUNA: Entering Thought Loop for self-reflection...")
                 loop_result = await self.controller.thought_loop.run_with_reflection(user_input, plan)
                 return {"plan": plan, "results": loop_result.get("results"), "type": "tool_action", "thought": thought, "success": loop_result.get("success")}
             
