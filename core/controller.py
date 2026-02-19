@@ -1,4 +1,4 @@
-# Path: core/controller.py (FIXED VERSION)
+# Path: core/controller.py
 import os
 import yaml
 import logging
@@ -127,7 +127,6 @@ class LunaController:
         """Central entry point for user input."""
         
         # 1. Check for Token Limit Error in previous response
-        # (Simplified: If user says 'resume' or if we detect a saved state)
         if user_input.lower() == "resume" and self.master_orchestrator.state_manager.has_active_execution():
             logging.info("LunaController: Resuming previous task...")
             resume_result = await self.resume_engine.resume_execution()
@@ -136,8 +135,10 @@ class LunaController:
         # 2. Normal Task Handling
         response_data = await self.orchestrator.handle_task(user_input)
         
+        is_success = False
         if response_data.get("type") == "chat":
             response = response_data.get("response")
+            is_success = True # Chat is usually considered success
             
             # 3. Auto-detect Token Limit Error from LLM response
             if "TOKEN_LIMIT_ERROR" in response:
@@ -145,17 +146,16 @@ class LunaController:
                 await self.resume_engine.handle_token_limit_error(response)
                 return "I've hit a token limit, but I've saved my progress. Type 'resume' to continue from where I left off."
         else:
-            # ===== FIX: Handle tool execution results properly =====
+            # Handle tool execution results
             results = response_data.get("results", [])
             if results:
                 last_res = results[-1].get("result", {})
                 output = last_res.get('output', '')
+                is_success = last_res.get('success', False)
                 
-                # If there's meaningful output, return it directly
                 if output and output != 'Success':
                     response = output
                 else:
-                    # If no output, try to get the message or error
                     message = last_res.get('message', '')
                     error = last_res.get('error', '')
                     
@@ -164,7 +164,6 @@ class LunaController:
                     elif message:
                         response = f"Task completed: {message}"
                     else:
-                        # Last resort: Ask LLM to summarize what was done
                         summary_prompt = (
                             f"User asked: {user_input}\n"
                             f"The system executed these steps: {response_data.get('plan', [])}\n"
@@ -174,6 +173,16 @@ class LunaController:
                         response = await self.llm_router.generate_response(summary_prompt)
             else:
                 response = "Action performed."
+                is_success = True
+
+        # ===== NEW: Telegram Notification on Success =====
+        if is_success and self.telegram and self.config.get("automation", {}).get("telegram", {}).get("enabled"):
+            try:
+                # Send a brief notification to Telegram
+                notify_msg = f"✅ Task Successful!\n\nTask: {user_input[:100]}...\n\nResult: {response[:200]}..."
+                asyncio.create_task(self.telegram.send_notification(notify_msg))
+            except Exception as e:
+                logging.error(f"LunaController: Failed to send Telegram notification: {e}")
         
         # Store in memory
         self.memory_manager.store_interaction(user_input, response)

@@ -14,12 +14,13 @@ class CodeAgent:
     def __init__(self, config: Dict[str, Any], llm_router: LLMRouter):
         self.config = config
         self.llm_router = llm_router
-        self.max_retries = config.get('max_retries', 3) # Default to 3 for efficiency
+        self.max_retries = config.get('max_retries', 3)
         self.timeout = config.get('execution_timeout', 30)
 
     async def execute(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        if action == "write_and_run":
-            return await self.self_healing_loop(params.get('task'), params.get('initial_code', ""))
+        if action in ["write_and_run", "write_function", "coding"]:
+            task = params.get('task') or params.get('function_name') or "Write code"
+            return await self.self_healing_loop(task, params.get('initial_code', ""))
         return {"error": f"Action {action} not supported"}
 
     def extract_code(self, text: str) -> str:
@@ -29,7 +30,6 @@ class CodeAgent:
         match = re.search(r"```python\n(.*?)\n```", text, re.DOTALL)
         if match:
             return match.group(1).strip()
-        # Fallback to general code block
         match = re.search(r"```\n(.*?)\n```", text, re.DOTALL)
         if match:
             return match.group(1).strip()
@@ -39,7 +39,6 @@ class CodeAgent:
         if language != "python":
             return {"success": False, "error": f"Language {language} not supported."}
 
-        # Clean code
         code = self.extract_code(code)
         if not code:
             return {"success": False, "error": "No valid code found to execute."}
@@ -79,26 +78,34 @@ class CodeAgent:
         for attempt in range(1, self.max_retries + 1):
             logging.info(f"LUNA Code Agent: Execution attempt {attempt}/{self.max_retries}")
             
-            # If no code, ask LLM to generate it first
             if not current_code:
-                gen_prompt = f"Task: {task}\nWrite a complete Python script to achieve this. Wrap the code in a ```python block."
+                gen_prompt = (
+                    f"Task: {task}\n"
+                    f"Write a complete, standalone Python script to achieve this. "
+                    f"Include a main block to demonstrate the code. "
+                    f"DO NOT use external libraries or complex CLI arguments unless requested. "
+                    f"Wrap the code in a ```python block."
+                )
                 current_code = await self.llm_router.generate_response(gen_prompt)
                 current_code = self.extract_code(current_code)
 
             result = await self.execute_code(current_code)
             
             if result["success"]:
+                final_output = (
+                    f"I have written and verified the code for you, IRFAN.\n\n"
+                    f"```python\n{current_code}\n```\n\n"
+                    f"**Execution Output:**\n```\n{result['stdout']}\n```"
+                )
                 return {
                     "success": True, 
                     "attempt": attempt,
                     "code": current_code, 
-                    "output": result["stdout"]
+                    "output": final_output
                 }
             
-            # Handle failure
             error_msg = result.get("stderr") or result.get("error")
             logging.warning(f"LUNA Code Agent: Attempt {attempt} failed: {error_msg}")
-            
             history.append({"attempt": attempt, "error": error_msg})
             
             if attempt < self.max_retries:
@@ -106,16 +113,24 @@ class CodeAgent:
                     f"Task: {task}\n"
                     f"Previous Code:\n```python\n{current_code}\n```\n"
                     f"Error encountered:\n{error_msg}\n"
-                    f"Please fix the code. Ensure it is complete and runnable. Wrap in ```python code block."
+                    f"The code failed to run. Please fix it. Ensure it is a standalone script that doesn't require manual input. "
+                    f"Wrap in ```python code block."
                 )
                 fix_response = await self.llm_router.generate_response(fix_prompt)
                 current_code = self.extract_code(fix_response)
             else:
                 break
                 
+        # Even if it fails, return the code so the user can see it
+        fail_output = (
+            f"I tried to write the code but encountered some issues during execution, IRFAN.\n\n"
+            f"**Last Code Attempt:**\n```python\n{current_code}\n```\n\n"
+            f"**Error:**\n{history[-1]['error']}"
+        )
         return {
             "success": False, 
             "error": "Max retries reached without success.", 
             "history": history,
-            "last_code": current_code
+            "last_code": current_code,
+            "output": fail_output
         }
