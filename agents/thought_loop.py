@@ -40,7 +40,17 @@ class ThoughtLoop:
             
             if success:
                 logging.info("ThoughtLoop: Task completed successfully.")
-                return {"success": True, "results": all_results}
+                # Aggregate outputs for the final response
+                final_output = ""
+                for res in iteration_results:
+                    if "output" in res["result"]:
+                        final_output += res["result"]["output"] + "\n\n"
+                
+                return {
+                    "success": True, 
+                    "results": all_results, 
+                    "output": final_output.strip() or "Task completed successfully."
+                }
             
             # 2. Reflection Phase (Self-Debugging)
             error_report = iteration_results[-1].get("result", {}).get("error", "Unknown error")

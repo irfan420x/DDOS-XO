@@ -170,44 +170,49 @@ class LunaController:
                 return "I've hit a token limit, but I've saved my progress. Type 'resume' to continue from where I left off."
         else:
             # Handle tool execution results
-            results = response_data.get("results", [])
-            if results:
-                last_res = results[-1].get("result", {})
-                output = last_res.get('output', '')
-                is_success = last_res.get('success', False)
-                
-                if output and output != 'Success':
-                    response = output
-                else:
-                    message = last_res.get('message', '')
-                    error = last_res.get('error', '')
-                    
-                    if error:
-                        # Error Intelligence Upgrade
-                        analysis_data = await self.error_intelligence.analyze_failure(user_input, error, results)
-                        response = f"I encountered an issue: {error}\n\n### Root Cause Analysis\n{analysis_data['analysis']}"
-                        
-                        # Voice Announcement for failure
-                        if hasattr(self, 'gui') and self.gui and self.gui.voice_engine.enabled:
-                            self.gui.voice_engine.announce_task_status(user_input, "failed", analysis_data['root_cause'])
-                    elif message:
-                        response = f"Task completed: {message}"
-                    else:
-                        summary_prompt = (
-                            f"User asked: {user_input}\n"
-                            f"The system executed these steps: {response_data.get('plan', [])}\n"
-                            f"Results: {results}\n"
-                            f"Provide a natural, conversational summary of what was accomplished."
-                        )
-                        response = await self.llm_router.generate_response(summary_prompt)
+            # Priority 1: Check if ThoughtLoop returned a combined output
+            if "output" in response_data:
+                response = response_data["output"]
+                is_success = response_data.get("success", True)
+            
+            # Priority 2: Check individual results
             else:
-                response = "Action performed."
-                is_success = True
+                results = response_data.get("results", [])
+                if results:
+                    last_res = results[-1].get("result", {})
+                    output = last_res.get('output', '')
+                    is_success = last_res.get('success', False)
+                    
+                    if output and output != 'Success':
+                        response = output
+                    else:
+                        message = last_res.get('message', '')
+                        error = last_res.get('error', '')
+                        
+                        if error:
+                            # Error Intelligence Upgrade
+                            analysis_data = await self.error_intelligence.analyze_failure(user_input, error, results)
+                            response = f"I encountered an issue: {error}\n\n### Root Cause Analysis\n{analysis_data['analysis']}"
+                            
+                            # Voice Announcement for failure
+                            if hasattr(self, 'gui') and self.gui and self.gui.voice_engine.enabled:
+                                self.gui.voice_engine.announce_task_status(user_input, "failed", analysis_data['root_cause'])
+                        elif message:
+                            response = f"Task completed: {message}"
+                        else:
+                            summary_prompt = (
+                                f"User asked: {user_input}\n"
+                                f"The system executed these steps: {response_data.get('plan', [])}\n"
+                                f"Results: {results}\n"
+                                f"Provide a natural, conversational summary of what was accomplished."
+                            )
+                            response = await self.llm_router.generate_response(summary_prompt)
+                else:
+                    response = "Action performed."
+                    is_success = True
 
         # Telegram Notification on Success (for general tasks)
-        # Power actions are handled separately in SystemAgent for more specific messaging
         if is_success and self.telegram and self.config.get("automation", {}).get("telegram", {}).get("enabled"):
-            # Don't double-notify for power actions which are already handled in SystemAgent
             if not any(word in user_input.lower() for word in ["shutdown", "restart", "power off"]):
                 try:
                     notify_msg = f"✅ Task Successful!\n\nTask: {user_input[:100]}...\n\nResult: {response[:200]}..."

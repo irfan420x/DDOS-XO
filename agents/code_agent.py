@@ -18,9 +18,21 @@ class CodeAgent:
         self.timeout = config.get('execution_timeout', 30)
 
     async def execute(self, action: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        if action in ["write_and_run", "write_function", "coding"]:
-            task = params.get('task') or params.get('function_name') or "Write code"
-            return await self.self_healing_loop(task, params.get('initial_code', ""))
+        if action in ["write_and_run", "write_function", "coding", "create_script"]:
+            task = params.get('task') or params.get('function_name') or params.get('content') or "Write code"
+            filename = params.get('filename') or params.get('path')
+            result = await self.self_healing_loop(task, params.get('initial_code', ""))
+            
+            # If a filename was provided, save the code to that file
+            if filename and result.get("success") and result.get("code"):
+                try:
+                    with open(filename, "w") as f:
+                        f.write(result["code"])
+                    result["output"] += f"\n\n✅ Code has been saved to `{filename}`."
+                except Exception as e:
+                    result["output"] += f"\n\n⚠️ Failed to save code to `{filename}`: {e}"
+            
+            return result
         return {"error": f"Action {action} not supported"}
 
     def extract_code(self, text: str) -> str:
