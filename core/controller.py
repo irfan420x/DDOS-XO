@@ -73,6 +73,17 @@ class LunaController:
         
         self.system_prompt = self.load_system_prompt()
         logging.info("LunaController: Modular initialization complete.")
+        
+        # Send Startup Notification
+        if self.telegram:
+            asyncio.create_task(self.send_startup_notification())
+
+    async def send_startup_notification(self):
+        """Sends a notification to Telegram when the system starts."""
+        await asyncio.sleep(2) # Wait for initialization to settle
+        msg = "🚀 LUNA-ULTRA System Online. Agent is active and ready for commands, IRFAN."
+        await self.telegram.send_notification(msg)
+        logging.info("LunaController: Startup notification sent to Telegram.")
 
     def load_modular_configs(self) -> Dict[str, Any]:
         combined_config = {}
@@ -99,7 +110,7 @@ class LunaController:
         """Starts background services safely."""
         if self.telegram and self.config.get("automation", {}).get("telegram", {}).get("enabled"):
             asyncio.create_task(self.telegram.run_bot())
-            await self.telegram.send_notification("System Online and Ready.")
+            # Notification is now handled in __init__ for immediate feedback
         
         if self.vision_loop and self.config.get("features", {}).get("vision", {}).get("enabled"):
             asyncio.create_task(self.vision_loop.start())
@@ -138,7 +149,7 @@ class LunaController:
         is_success = False
         if response_data.get("type") == "chat":
             response = response_data.get("response")
-            is_success = True # Chat is usually considered success
+            is_success = True
             
             # 3. Auto-detect Token Limit Error from LLM response
             if "TOKEN_LIMIT_ERROR" in response:
@@ -175,14 +186,16 @@ class LunaController:
                 response = "Action performed."
                 is_success = True
 
-        # ===== NEW: Telegram Notification on Success =====
+        # Telegram Notification on Success (for general tasks)
+        # Power actions are handled separately in SystemAgent for more specific messaging
         if is_success and self.telegram and self.config.get("automation", {}).get("telegram", {}).get("enabled"):
-            try:
-                # Send a brief notification to Telegram
-                notify_msg = f"✅ Task Successful!\n\nTask: {user_input[:100]}...\n\nResult: {response[:200]}..."
-                asyncio.create_task(self.telegram.send_notification(notify_msg))
-            except Exception as e:
-                logging.error(f"LunaController: Failed to send Telegram notification: {e}")
+            # Don't double-notify for power actions which are already handled in SystemAgent
+            if not any(word in user_input.lower() for word in ["shutdown", "restart", "power off"]):
+                try:
+                    notify_msg = f"✅ Task Successful!\n\nTask: {user_input[:100]}...\n\nResult: {response[:200]}..."
+                    asyncio.create_task(self.telegram.send_notification(notify_msg))
+                except Exception as e:
+                    logging.error(f"LunaController: Failed to send Telegram notification: {e}")
         
         # Store in memory
         self.memory_manager.store_interaction(user_input, response)

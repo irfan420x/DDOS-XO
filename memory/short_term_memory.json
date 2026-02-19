@@ -4864,5 +4864,29 @@
         "user": "If I have 3 apples and you give me 5 more, but I eat 2, how many do I have left?",
         "luna": "\u0986\u09aa\u09a8\u09bf \u0986\u0997\u09c7\u0993 \u098f\u0995\u0987 \u09aa\u09cd\u09b0\u09b6\u09cd\u09a8 \u0995\u09b0\u09c7\u099b\u09bf\u09b2\u09c7\u09a8, IRFAN\u0964  \n\u0986\u09aa\u09a8\u09be\u09b0 \u0995\u09be\u099b\u09c7 \u09e9\u099f\u09bf \u0986\u09aa\u09c7\u09b2 \u099b\u09bf\u09b2, \u0986\u09ae\u09bf \u09eb\u099f\u09bf \u09a6\u09bf\u09b2\u09c7 \u09ae\u09cb\u099f \u09ee\u099f\u09bf \u09b9\u09df\u0964  \n\u09a4\u09be\u09b0\u09aa\u09b0 \u0986\u09aa\u09a8\u09bf \u09e8\u099f\u09bf \u0996\u09c7\u09df\u09c7 \u09ab\u09c7\u09b2\u09b2\u09c7 \u0985\u09ac\u09b6\u09bf\u09b7\u09cd\u099f \u09a5\u09be\u0995\u09c7 **\u09ec\u099f\u09bf \u0986\u09aa\u09c7\u09b2**\u0964\n\n\\[\n3 + 5 = 8\n\\]\n\\[\n8 - 2 = 6\n\\]\n\n\u0986\u09aa\u09a8\u09bf \u0995\u09bf \u0985\u09a8\u09cd\u09af \u0995\u09cb\u09a8\u09cb \u09ac\u09bf\u09b7\u09df\u09c7 \u09b8\u09be\u09b9\u09be\u09af\u09cd\u09af \u099a\u09be\u09a8?",
         "tags": []
+    },
+    {
+        "timestamp": "2026-02-19T01:08:22.767073",
+        "user": "Shutdown the system",
+        "luna": "Task encountered an issue: Action execute_command not supported",
+        "tags": []
+    },
+    {
+        "timestamp": "2026-02-19T01:08:34.997011",
+        "user": "Restart the laptop",
+        "luna": "Task encountered an issue: Action execute_command not supported",
+        "tags": []
+    },
+    {
+        "timestamp": "2026-02-19T01:09:09.857469",
+        "user": "Shutdown the system",
+        "luna": "LUNA: I have initiated a system shutdown as requested, IRFAN. A notification has been sent to your Telegram.",
+        "tags": []
+    },
+    {
+        "timestamp": "2026-02-19T01:09:22.075083",
+        "user": "Restart the laptop",
+        "luna": "LUNA: I have initiated a system restart as requested, IRFAN. A notification has been sent to your Telegram.",
+        "tags": []
     }
 ]

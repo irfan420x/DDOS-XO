@@ -1,4 +1,4 @@
-# Path: core/orchestrator.py (FIXED VERSION)
+# Path: core/orchestrator.py
 import logging
 import json
 import re
@@ -24,7 +24,7 @@ class Orchestrator:
         self.agents["code"] = CodeAgent(self.controller.config, self.controller.llm_router)
         self.agents["automation"] = AutomationAgent(self.controller.config, self.controller.permission_engine)
         self.agents["screen"] = ScreenAgent(self.controller.config, self.controller.permission_engine)
-        self.agents["system"] = SystemAgent(self.controller.config)
+        self.agents["system"] = SystemAgent(self.controller.config, self.controller)
         self.agents["dynamic"] = DynamicAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine)
         self.agents["architect"] = ArchitectAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine)
         
@@ -37,7 +37,6 @@ class Orchestrator:
         memory_context = self.controller.memory_manager.get_context(user_input)
 
         # ===== FIX 1: Quick check for simple math questions =====
-        # These should be handled as conversation, not as tasks
         math_pattern = r'(what is|calculate|compute|solve|how much).*(\d+.*[\+\-\*\/\^].*\d+|square root|factorial|power|multiply|divide|add|subtract)'
         if re.search(math_pattern, user_input.lower()):
             logging.info("Orchestrator: Detected simple math question, treating as conversation")
@@ -51,7 +50,6 @@ class Orchestrator:
             return {"response": chat_response, "type": "chat", "thought": "Simple mathematical calculation"}
 
         # 1. Intent Classification
-        # ===== FIX 2: Improved intent classification prompt =====
         intent_prompt = (
             f"Context:\n{memory_context}\n\n"
             f"Classify the user intent for: \"{user_input}\"\n\n"
@@ -59,12 +57,11 @@ class Orchestrator:
             f"- GREETING: Simple greetings like 'hello', 'hi', 'how are you'\n"
             f"- CONVERSATION: General chat, questions needing direct answers, simple calculations, factual queries\n"
             f"- CODING: Writing, debugging, or executing code files\n"
-            f"- SYSTEM_ACTION: File operations, system commands, installing software\n"
+            f"- SYSTEM_ACTION: File operations, system commands, installing software, shutdown, restart\n"
             f"- WEB_ACTION: Web browsing, scraping, downloading from internet\n"
             f"- AUTOMATION: Browser automation, keyboard/mouse control\n"
             f"- ANALYSIS: Complex data analysis requiring tools, processing large datasets\n\n"
             f"Important: Simple math questions, factual questions, and conversational queries should be CONVERSATION.\n"
-            f"Only use ANALYSIS for complex data processing tasks.\n\n"
             f"Respond in format: INTENT: <CATEGORY> | THOUGHT: <REASONING>"
         )
         reasoning_response = await self.controller.llm_router.generate_response(intent_prompt)
@@ -98,6 +95,7 @@ class Orchestrator:
             f"Thought: {thought}\n"
             f"Available Agents: {list(self.agents.keys())}.\n"
             f"Generate a JSON list of steps: [{{'agent': 'name', 'action': 'method', 'params': {{}} }}]\n"
+            f"For shutdown/restart, use agent 'system' and action 'shutdown' or 'restart'.\n"
             f"Return ONLY the JSON list."
         )
         plan_str = await self.controller.llm_router.generate_response(plan_prompt)
@@ -110,43 +108,36 @@ class Orchestrator:
         except Exception as e:
             logging.error(f"Orchestrator: Plan error: {e}")
 
-        # 4. Execution (with Self-Reflective Thought Loop)
+        # 4. Execution
         if plan:
-            # Initialize state for potential resume
             if hasattr(self.controller, 'master_orchestrator'):
                 self.controller.master_orchestrator.state_manager.initialize_execution(user_input, {"steps": plan})
 
-            # Use ThoughtLoop for complex tasks or if multiple steps are involved
             if len(plan) > 1 or intent in ["CODING", "AUTOMATION"]:
                 if hasattr(self.controller, 'gui') and self.controller.gui:
                     self.controller.gui.update_activity("🧠 LUNA: Entering Thought Loop for self-reflection...")
                 loop_result = await self.controller.thought_loop.run_with_reflection(user_input, plan)
                 
-                # Mark complete if successful
                 if hasattr(self.controller, 'master_orchestrator'):
                     self.controller.master_orchestrator.state_manager.mark_execution_complete(loop_result.get("success", False))
                 
                 return {"plan": plan, "results": loop_result.get("results"), "type": "tool_action", "thought": thought, "success": loop_result.get("success")}
             
-            # Simple execution for single steps
             results = []
             for idx, step in enumerate(plan):
                 agent = self.agents.get(step.get("agent"))
                 if agent:
-                    # Update state
                     if hasattr(self.controller, 'master_orchestrator'):
                         self.controller.master_orchestrator.state_manager.update_current_step(idx)
                     
                     res = await agent.execute(step.get("action"), step.get("params", {}))
                     results.append({"step": step, "result": res})
                     
-                    # Mark step complete
                     if hasattr(self.controller, 'master_orchestrator'):
                         self.controller.master_orchestrator.state_manager.mark_step_complete(idx, res.get("success", False), res)
                     
                     if not res.get("success"): break
             
-            # Mark execution complete
             if hasattr(self.controller, 'master_orchestrator'):
                 success = all(r.get("result", {}).get("success", False) for r in results)
                 self.controller.master_orchestrator.state_manager.mark_execution_complete(success)
