@@ -37,7 +37,7 @@ gui:
   theme: dark
   startup_banner: true
   window_size: "1100x750"
-  voice_mode: true
+  voice_mode: false
   welcome_message: "LUNA-ULTRA is ready. How can I assist you today, IRFAN?"
 
 user:

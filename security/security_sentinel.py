@@ -11,8 +11,8 @@ class SecuritySentinel:
     """
     def __init__(self, controller: Any):
         self.controller = controller
-        self.config = controller.config.get("security", {})
-        self.enabled = self.config.get("sentinel_enabled", True)
+        self.config = controller.config.get("security", {}) if controller.config.get("security") else {}
+        self.enabled = self.config.get("sentinel_enabled", True) if self.config else True
         self.interval = self.config.get("sentinel_interval", 30) # Seconds
         self.known_ports: Set[int] = set()
         self.running = False
@@ -39,8 +39,11 @@ class SecuritySentinel:
         """Gets currently open TCP ports using netstat."""
         ports = set()
         try:
-            # Command works on both Linux and Windows (with slight variations, handled here for Linux)
-            output = subprocess.check_output("netstat -tunlp | grep LISTEN", shell=True).decode()
+            # Hardened: Using list for subprocess to avoid shell=True
+            p1 = subprocess.Popen(["netstat", "-tunlp"], stdout=subprocess.PIPE)
+            p2 = subprocess.Popen(["grep", "LISTEN"], stdin=p1.stdout, stdout=subprocess.PIPE)
+            p1.stdout.close()
+            output = p2.communicate()[0].decode()
             for line in output.splitlines():
                 parts = line.split()
                 if len(parts) > 3:
@@ -62,15 +65,39 @@ class SecuritySentinel:
             await self.notify(msg)
             # We don't automatically add to known_ports to keep alerting until user acknowledges
         
-        # 2. Log Monitoring (Simplified for demo, targets auth.log)
+        # 2. Process Monitoring (Check for suspicious processes)
+        await self.check_suspicious_processes()
+        
+        # 3. Log Monitoring (Simplified for demo, targets auth.log)
         if os.path.exists("/var/log/auth.log"):
             await self.check_auth_logs()
+
+    async def check_suspicious_processes(self):
+        """Checks for common suspicious process names or high resource usage."""
+        import psutil
+        suspicious_names = ["miner", "nc", "netcat", "nmap", "wireshark", "tcpdump"]
+        for proc in psutil.process_iter(['pid', 'name', 'cpu_percent']):
+            try:
+                pinfo = proc.info
+                if any(name in pinfo['name'].lower() for name in suspicious_names):
+                    msg = f"🚨 SECURITY ALERT: Suspicious process detected: {pinfo['name']} (PID: {pinfo['pid']})"
+                    await self.notify(msg)
+                
+                # High CPU usage alert (e.g., > 90%)
+                if pinfo['cpu_percent'] > 90.0:
+                    msg = f"⚠️ PERFORMANCE ALERT: High CPU usage by {pinfo['name']} (PID: {pinfo['pid']}): {pinfo['cpu_percent']}%"
+                    await self.notify(msg)
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
 
     async def check_auth_logs(self):
         """Scans auth logs for suspicious login attempts."""
         try:
-            # Check last 10 lines for 'Failed password'
-            output = subprocess.check_output("tail -n 10 /var/log/auth.log | grep 'Failed password'", shell=True).decode()
+            # Hardened: Using list for subprocess to avoid shell=True
+            p1 = subprocess.Popen(["tail", "-n", "10", "/var/log/auth.log"], stdout=subprocess.PIPE)
+            p2 = subprocess.Popen(["grep", "Failed password"], stdin=p1.stdout, stdout=subprocess.PIPE)
+            p1.stdout.close()
+            output = p2.communicate()[0].decode()
             if output:
                 msg = "🚨 SECURITY ALERT: Multiple failed login attempts detected in auth.log!"
                 await self.notify(msg)
@@ -81,5 +108,5 @@ class SecuritySentinel:
         if hasattr(self.controller, 'gui') and self.controller.gui:
             self.controller.gui.update_activity(f"🛡️ {message}")
         
-        if self.controller.telegram.enabled:
+        if self.controller.telegram and self.controller.telegram.enabled:
             await self.controller.telegram.send_notification(message)

@@ -35,7 +35,7 @@ class LunaBootstrap:
                 os.makedirs(d)
         
         # 2. Initialize Controller
-        controller = LunaController(self.config_path)
+        controller = LunaController("config")
         
         # 3. Verify LLM Connectivity
         print(f"🌙 LUNA-ULTRA: Connecting to {self.config['llm']['default_provider']} API...")

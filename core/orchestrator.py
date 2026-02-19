@@ -24,19 +24,44 @@ class Orchestrator:
         self.agents["code"] = CodeAgent(self.controller.config, self.controller.llm_router)
         self.agents["automation"] = AutomationAgent(self.controller.config, self.controller.permission_engine)
         self.agents["screen"] = ScreenAgent(self.controller.config, self.controller.permission_engine)
-        self.agents["system"] = SystemAgent(self.controller.config)
+        self.agents["system"] = SystemAgent(self.controller.config, self.controller)
         self.agents["dynamic"] = DynamicAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine)
-        self.agents["architect"] = ArchitectAgent(self.controller.config, self.controller.llm_router)
+        self.agents["architect"] = ArchitectAgent(self.controller.config, self.controller.llm_router, self.controller.permission_engine)
         
         logging.info(f"Orchestrator: Initialized {len(self.agents)} agents.")
 
     async def handle_task(self, user_input: str) -> Dict[str, Any]:
         logging.info(f"Orchestrator: Analyzing task: {user_input}")
+        
+        # 0. Get Memory Context
+        memory_context = self.controller.memory_manager.get_context(user_input)
+
+        # ===== FIX 1: Quick check for simple math questions =====
+        math_pattern = r'(what is|calculate|compute|solve|how much).*(\d+.*[\+\-\*\/\^].*\d+|square root|factorial|power|multiply|divide|add|subtract)'
+        if re.search(math_pattern, user_input.lower()):
+            logging.info("Orchestrator: Detected simple math question, treating as conversation")
+            chat_prompt = (
+                f"{self.controller.system_prompt}\n\n"
+                f"Context:\n{memory_context}\n\n"
+                f"User: {user_input}\n\n"
+                f"Provide a clear, direct answer to this mathematical question."
+            )
+            chat_response = await self.controller.llm_router.generate_response(chat_prompt)
+            return {"response": chat_response, "type": "chat", "thought": "Simple mathematical calculation"}
 
         # 1. Intent Classification
         intent_prompt = (
-            f"Classify the user intent for: \"{user_input}\"\n"
-            f"Categories: GREETING, CONVERSATION, CODING, SYSTEM_ACTION, WEB_ACTION, AUTOMATION, ANALYSIS.\n"
+            f"Context:\n{memory_context}\n\n"
+            f"Classify the user intent for: \"{user_input}\"\n\n"
+            f"Categories:\n"
+            f"- GREETING: Simple greetings like 'hello', 'hi', 'how are you'\n"
+            f"- CONVERSATION: General chat, questions needing direct answers, simple calculations, factual queries\n"
+            f"- CODING: Writing, debugging, or executing code files\n"
+            f"- SYSTEM_ACTION: File operations, system commands, installing software, shutdown, restart\n"
+            f"- WEB_ACTION: Web browsing, scraping, downloading from internet\n"
+            f"- AUTOMATION: Browser automation, keyboard/mouse control\n"
+            f"- ANALYSIS: Complex data analysis requiring tools, processing large datasets\n\n"
+            f"Important: Simple math questions, factual questions, and conversational queries should be CONVERSATION.\n"
             f"Respond in format: INTENT: <CATEGORY> | THOUGHT: <REASONING>"
         )
         reasoning_response = await self.controller.llm_router.generate_response(intent_prompt)
@@ -56,7 +81,12 @@ class Orchestrator:
         # 2. Routing Logic
         action_intents = ["CODING", "SYSTEM_ACTION", "WEB_ACTION", "AUTOMATION", "ANALYSIS"]
         if intent not in action_intents:
-            chat_response = await self.controller.llm_router.generate_response(user_input)
+            chat_prompt = (
+                f"{self.controller.system_prompt}\n\n"
+                f"Context:\n{memory_context}\n\n"
+                f"User: {user_input}"
+            )
+            chat_response = await self.controller.llm_router.generate_response(chat_prompt)
             return {"response": chat_response, "type": "chat", "thought": thought}
 
         # 3. Tool Planning
@@ -65,6 +95,7 @@ class Orchestrator:
             f"Thought: {thought}\n"
             f"Available Agents: {list(self.agents.keys())}.\n"
             f"Generate a JSON list of steps: [{{'agent': 'name', 'action': 'method', 'params': {{}} }}]\n"
+            f"For shutdown/restart, use agent 'system' and action 'shutdown' or 'restart'.\n"
             f"Return ONLY the JSON list."
         )
         plan_str = await self.controller.llm_router.generate_response(plan_prompt)
@@ -78,14 +109,61 @@ class Orchestrator:
             logging.error(f"Orchestrator: Plan error: {e}")
 
         # 4. Execution
-        results = []
         if plan:
-            for step in plan:
+            if hasattr(self.controller, 'master_orchestrator'):
+                self.controller.master_orchestrator.state_manager.initialize_execution(user_input, {"steps": plan})
+
+            if len(plan) > 1 or intent in ["CODING", "AUTOMATION"]:
+                if hasattr(self.controller, 'gui') and self.controller.gui:
+                    self.controller.gui.update_activity("🧠 LUNA: Entering Thought Loop for self-reflection...")
+                loop_result = await self.controller.thought_loop.run_with_reflection(user_input, plan)
+                
+                if hasattr(self.controller, 'master_orchestrator'):
+                    self.controller.master_orchestrator.state_manager.mark_execution_complete(loop_result.get("success", False))
+                
+                return {"plan": plan, "results": loop_result.get("results"), "type": "tool_action", "thought": thought, "success": loop_result.get("success")}
+            
+            results = []
+            for idx, step in enumerate(plan):
                 agent = self.agents.get(step.get("agent"))
                 if agent:
+                    if hasattr(self.controller, 'master_orchestrator'):
+                        self.controller.master_orchestrator.state_manager.update_current_step(idx)
+                    
+                    # Structured Transparency Upgrade
+                    if hasattr(self.controller, 'gui') and self.controller.gui:
+                        self.controller.gui.activity_panel.update_activity({
+                            "agent": step.get("agent"),
+                            "task": f"{step.get('action')} {step.get('params', {})}",
+                            "confidence": 0.95, # Simulated for now
+                            "risk_level": "LOW",
+                            "status": "executing"
+                        })
+                        if self.controller.gui.voice_engine.enabled:
+                            self.controller.gui.voice_engine.announce_task_start(f"{step.get('agent')} {step.get('action')}")
+
                     res = await agent.execute(step.get("action"), step.get("params", {}))
                     results.append({"step": step, "result": res})
+                    
+                    # Update GUI with result
+                    if hasattr(self.controller, 'gui') and self.controller.gui:
+                        self.controller.gui.activity_panel.update_activity({
+                            "agent": step.get("agent"),
+                            "task": f"{step.get('action')} completed",
+                            "confidence": 0.98,
+                            "risk_level": "LOW",
+                            "status": "success" if res.get("success") else "failed"
+                        })
+                    
+                    if hasattr(self.controller, 'master_orchestrator'):
+                        self.controller.master_orchestrator.state_manager.mark_step_complete(idx, res.get("success", False), res)
+                    
                     if not res.get("success"): break
+            
+            if hasattr(self.controller, 'master_orchestrator'):
+                success = all(r.get("result", {}).get("success", False) for r in results)
+                self.controller.master_orchestrator.state_manager.mark_execution_complete(success)
+
             return {"plan": plan, "results": results, "type": "tool_action", "thought": thought}
         
         return {"response": "I understood your request but couldn't form a plan.", "type": "chat"}

@@ -1,215 +1,361 @@
 # Path: gui/main_window.py
-import tkinter as tk
-from tkinter import ttk, scrolledtext, messagebox
-from typing import Dict, Any
+import sys
+import os
+import logging
 import threading
 import asyncio
+import psutil
+from typing import Dict, Any, Optional
+from PyQt6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
+    QLineEdit, QPushButton, QComboBox, QCheckBox, QTextEdit, 
+    QFrame, QScrollArea, QProgressBar, QSplitter, QStackedWidget,
+    QListWidget, QListWidgetItem, QGraphicsDropShadowEffect
+)
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QObject, QSize
+from PyQt6.QtGui import QFont, QIcon, QColor, QPalette, QTextCursor
+import qtawesome as qta
+
+from gui.themes.manus_theme import MANUS_STYLE
+from gui.panels.manus_panels import GitHubPanel, SettingsPanel
+from gui.panels.activity_panel import LiveActivityPanel
 from gui.voice_engine import VoiceEngine
 
-class LunaGUI:
+class WorkerSignals(QObject):
+    response_received = pyqtSignal(str)
+    activity_logged = pyqtSignal(str)
+    thought_logged = pyqtSignal(str)
+
+class LunaGUI(QMainWindow):
     """
-    LUNA-ULTRA Main GUI Window: Modern Dark UI with integrated voice mode.
+    LUNA-ULTRA v2.6: Professional AI Interface with Modern Aesthetics.
     """
     def __init__(self, controller: Any):
+        super().__init__()
         self.controller = controller
-        self.controller.gui = self # Register GUI with controller
-        self.root = tk.Tk()
-        self.root.title("🌙 LUNA-ULTRA")
-        self.root.geometry(self.controller.config.get('gui', {}).get('window_size', "1200x800"))
-        self.root.configure(bg="#0b0e14")
+        self.controller.gui = self
+        self.signals = WorkerSignals()
         
         # Initialize Voice Engine
         self.voice_engine = VoiceEngine(self.controller.config)
         
-        self.setup_styles()
-        self.create_widgets()
+        self.setWindowTitle("LUNA-ULTRA | Professional AI Architect")
+        self.setMinimumSize(1300, 900)
+        self.setStyleSheet(MANUS_STYLE)
+        
+        self.setup_ui()
+        self.setup_signals()
+        self.start_system_monitors()
+        
         self.display_welcome_message()
-        self.check_for_resume()
 
-    def setup_styles(self):
-        style = ttk.Style()
-        style.theme_use('clam')
-        style.configure("TFrame", background="#0b0e14")
-        style.configure("TLabel", background="#0b0e14", foreground="#e0e0e0", font=("Segoe UI", 10))
-        style.configure("Header.TLabel", background="#0b0e14", foreground="#bb86fc", font=("Segoe UI", 16, "bold"))
-        style.configure("TButton", background="#1f2937", foreground="#ffffff", borderwidth=0, font=("Segoe UI", 10))
-        style.configure("Action.TButton", background="#bb86fc", foreground="#000000", borderwidth=0, font=("Segoe UI", 10, "bold"))
-        style.map("TButton", background=[('active', '#374151')])
-        style.map("Action.TButton", background=[('active', '#d7b7fd')])
+    def setup_ui(self):
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+        main_layout = QHBoxLayout(central_widget)
+        main_layout.setContentsMargins(0, 0, 0, 0)
+        main_layout.setSpacing(0)
 
-    def create_widgets(self):
-        # Top Bar
-        top_bar = ttk.Frame(self.root)
-        top_bar.pack(side="top", fill="x", padx=25, pady=20)
-        ttk.Label(top_bar, text="🌙 LUNA-ULTRA", style="Header.TLabel").pack(side="left")
+        # --- 1. SIDEBAR (Navigation) ---
+        sidebar = QFrame()
+        sidebar.setObjectName("Sidebar")
+        sidebar.setFixedWidth(85)
+        sidebar_layout = QVBoxLayout(sidebar)
+        sidebar_layout.setContentsMargins(10, 40, 10, 40)
+        sidebar_layout.setSpacing(30)
+
+        # Logo with Glow
+        logo = QLabel("🌙")
+        logo.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        logo.setStyleSheet("font-size: 36px; margin-bottom: 20px;")
+        sidebar_layout.addWidget(logo)
+
+        # Nav Buttons
+        self.nav_chat = self.create_nav_btn("comment", "Chat")
+        self.nav_agent = self.create_nav_btn("robot", "Agent")
+        self.nav_github = self.create_nav_btn("github", "GitHub")
+        self.nav_settings = self.create_nav_btn("cog", "Settings")
         
-        status = self.controller.get_status()
-        self.status_label = ttk.Label(
-            top_bar, 
-            text=f"● {status['provider'].upper()} ONLINE | {status['permission']}", 
-            foreground="#03dac6",
-            font=("Segoe UI", 10, "bold")
-        )
-        self.status_label.pack(side="right", padx=10)
-
-        # Main Layout: Three Columns
-        content_frame = ttk.Frame(self.root)
-        content_frame.pack(fill="both", expand=True, padx=25, pady=(0, 25))
-
-        # 1. Left Sidebar (Controls)
-        left_sidebar = ttk.Frame(content_frame, width=220)
-        left_sidebar.pack(side="left", fill="y", padx=(0, 20))
+        sidebar_layout.addWidget(self.nav_chat)
+        sidebar_layout.addWidget(self.nav_agent)
+        sidebar_layout.addWidget(self.nav_github)
+        sidebar_layout.addWidget(self.nav_settings)
         
-        ttk.Label(left_sidebar, text="CONTROLS", font=("Segoe UI", 10, "bold"), foreground="#bb86fc").pack(anchor="w", pady=(0, 15))
+        sidebar_layout.addStretch()
         
-        # Voice Mode
-        v_frame = ttk.Frame(left_sidebar)
-        v_frame.pack(fill="x", pady=5)
-        ttk.Label(v_frame, text="Voice:").pack(side="left")
-        self.voice_var = tk.BooleanVar(value=self.voice_engine.enabled)
-        ttk.Checkbutton(v_frame, variable=self.voice_var, command=self.toggle_voice).pack(side="right")
-
-        # Voice Selection
-        ttk.Label(left_sidebar, text="Voice Personality:").pack(anchor="w", pady=(15, 5))
-        self.voice_lang_var = tk.StringVar(value="English")
-        voice_menu = ttk.OptionMenu(
-            left_sidebar, 
-            self.voice_lang_var, 
-            "English", 
-            *self.voice_engine.available_langs.keys(),
-            command=self.change_voice
-        )
-        voice_menu.pack(fill="x", pady=5)
-
-        # Permission
-        ttk.Label(left_sidebar, text="Access Level:").pack(anchor="w", pady=(15, 5))
-        self.perm_var = tk.StringVar(value=status['permission'])
-        ttk.OptionMenu(left_sidebar, self.perm_var, status['permission'], "SAFE", "STANDARD", "ADVANCED", "ROOT").pack(fill="x", pady=5)
-
-        # System Status Card
-        info_card = tk.Frame(left_sidebar, bg="#1a1f2b", padx=15, pady=15)
-        info_card.pack(fill="x", pady=25)
-        tk.Label(info_card, text="AGENT STATUS", bg="#1a1f2b", fg="#bb86fc", font=("Segoe UI", 9, "bold")).pack(anchor="w")
-        self.user_label = tk.Label(info_card, text=f"User: {status['user']}", bg="#1a1f2b", fg="#9ca3af", font=("Segoe UI", 9)).pack(anchor="w", pady=(5, 0))
-        self.mode_label = tk.Label(info_card, text=f"Mode: {status['mode']}", bg="#1a1f2b", fg="#9ca3af", font=("Segoe UI", 9)).pack(anchor="w")
-
-        # 2. Middle Column (Chat Area)
-        chat_column = ttk.Frame(content_frame)
-        chat_column.pack(side="left", fill="both", expand=True)
+        # Status Indicator
+        status_container = QVBoxLayout()
+        self.status_dot = QLabel("●")
+        self.status_dot.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.status_dot.setStyleSheet("color: #10B981; font-size: 24px;")
+        status_container.addWidget(self.status_dot)
         
-        chat_container = tk.Frame(chat_column, bg="#0f172a", highlightbackground="#1e293b", highlightthickness=1)
-        chat_container.pack(fill="both", expand=True)
+        status_label = QLabel("ONLINE")
+        status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        status_label.setStyleSheet("color: #6B7280; font-size: 9px; font-weight: bold;")
+        status_container.addWidget(status_label)
+        sidebar_layout.addLayout(status_container)
+
+        main_layout.addWidget(sidebar)
+
+        # --- 2. MAIN CONTENT AREA ---
+        content_area = QFrame()
+        content_area.setObjectName("MainContent")
+        content_layout = QVBoxLayout(content_area)
+        content_layout.setContentsMargins(30, 30, 30, 30)
         
-        self.chat_display = scrolledtext.ScrolledText(
-            chat_container, 
-            bg="#0f172a", fg="#f1f5f9", font=("Segoe UI", 11),
-            padx=20, pady=20, borderwidth=0, highlightthickness=0
-        )
-        self.chat_display.pack(fill="both", expand=True)
+        # Top Header
+        header_layout = QHBoxLayout()
+        header_info = QVBoxLayout()
+        self.page_title = QLabel("Chat Interface")
+        self.page_title.setObjectName("Header")
+        header_info.addWidget(self.page_title)
+        
+        self.page_subtitle = QLabel("Autonomous AI Interaction & Reasoning")
+        self.page_subtitle.setObjectName("SubHeader")
+        header_info.addWidget(self.page_subtitle)
+        header_layout.addLayout(header_info)
+        
+        header_layout.addStretch()
+        
+        # System Monitors
+        monitor_layout = QHBoxLayout()
+        monitor_layout.setSpacing(20)
+        
+        def create_monitor(label_text):
+            container = QVBoxLayout()
+            lbl = QLabel(label_text)
+            lbl.setObjectName("SubHeader")
+            lbl.setStyleSheet("font-size: 10px;")
+            bar = QProgressBar()
+            bar.setFixedWidth(120)
+            bar.setFixedHeight(4)
+            bar.setTextVisible(False)
+            container.addWidget(lbl)
+            container.addWidget(bar)
+            return container, bar
+
+        cpu_cont, self.cpu_bar = create_monitor("CPU USAGE")
+        ram_cont, self.ram_bar = create_monitor("RAM USAGE")
+        
+        monitor_layout.addLayout(cpu_cont)
+        monitor_layout.addLayout(ram_cont)
+        header_layout.addLayout(monitor_layout)
+        
+        content_layout.addLayout(header_layout)
+        content_layout.addSpacing(30)
+
+        # Stacked Widget for Pages
+        self.pages = QStackedWidget()
+        
+        # Page 1: Chat
+        chat_page = QWidget()
+        chat_layout = QHBoxLayout(chat_page)
+        chat_layout.setContentsMargins(0, 0, 0, 0)
+        chat_layout.setSpacing(20)
+        
+        chat_splitter = QSplitter(Qt.Orientation.Horizontal)
+        chat_splitter.setHandleWidth(1)
+        chat_splitter.setStyleSheet("QSplitter::handle { background-color: transparent; }")
+        
+        # Chat Main
+        chat_main = QFrame()
+        chat_main.setObjectName("Panel")
+        chat_main_layout = QVBoxLayout(chat_main)
+        chat_main_layout.setContentsMargins(20, 20, 20, 20)
+        
+        self.chat_display = QTextEdit()
+        self.chat_display.setReadOnly(True)
+        self.chat_display.setStyleSheet("background: transparent; border: none; font-size: 14px; line-height: 1.6;")
+        self.chat_display.setPlaceholderText("Conversation history will appear here...")
+        chat_main_layout.addWidget(self.chat_display)
+        
+        # Thought Process Area
+        thought_frame = QFrame()
+        thought_frame.setStyleSheet("background-color: #111114; border-radius: 10px; border: 1px solid #1F1F23;")
+        thought_frame_layout = QVBoxLayout(thought_frame)
+        thought_frame_layout.setContentsMargins(15, 10, 15, 10)
+        
+        thought_header = QHBoxLayout()
+        thought_icon = QLabel()
+        thought_icon.setPixmap(qta.icon("fa5s.brain", color="#5850EC").pixmap(14, 14))
+        thought_header.addWidget(thought_icon)
+        thought_header.addWidget(QLabel("REASONING PROCESS", objectName="SubHeader"))
+        thought_header.addStretch()
+        thought_frame_layout.addLayout(thought_header)
+        
+        self.thought_display = QTextEdit()
+        self.thought_display.setReadOnly(True)
+        self.thought_display.setPlaceholderText("Waiting for input...")
+        self.thought_display.setMaximumHeight(80)
+        self.thought_display.setStyleSheet("background: transparent; border: none; color: #9CA3AF; font-family: 'Consolas'; font-size: 12px;")
+        thought_frame_layout.addWidget(self.thought_display)
+        chat_main_layout.addWidget(thought_frame)
         
         # Input Area
-        input_container = tk.Frame(chat_column, bg="#0b0e14", pady=15)
-        input_container.pack(fill="x")
+        input_container = QFrame()
+        input_container.setStyleSheet("background-color: #111114; border-radius: 12px; border: 1px solid #1F1F23;")
+        input_layout = QHBoxLayout(input_container)
+        input_layout.setContentsMargins(10, 5, 10, 5)
         
-        self.input_field = tk.Entry(
-            input_container, 
-            bg="#1e293b", fg="#ffffff", insertbackground="#bb86fc",
-            borderwidth=0, font=("Segoe UI", 12), highlightbackground="#334155", highlightthickness=1
-        )
-        self.input_field.pack(side="left", fill="x", expand=True, ipady=10, padx=(0, 15))
-        self.input_field.bind("<Return>", self.send_message)
+        self.input_field = QLineEdit()
+        self.input_field.setPlaceholderText("Type a message or command for LUNA...")
+        self.input_field.setStyleSheet("background: transparent; border: none; padding: 10px; font-size: 14px;")
+        self.input_field.returnPressed.connect(self.send_message)
+        input_layout.addWidget(self.input_field)
         
-        ttk.Button(input_container, text="SEND", style="Action.TButton", command=self.send_message).pack(side="right")
-
-        # 3. Right Sidebar (Manus-style Activity Feed)
-        right_sidebar = ttk.Frame(content_frame, width=350)
-        right_sidebar.pack(side="left", fill="y", padx=(20, 0))
+        self.send_btn = QPushButton()
+        self.send_btn.setIcon(qta.icon("fa5s.paper-plane", color="white"))
+        self.send_btn.setFixedSize(40, 40)
+        self.send_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.send_btn.setStyleSheet("background-color: #5850EC; border-radius: 8px; border: none;")
+        self.send_btn.clicked.connect(self.send_message)
+        input_layout.addWidget(self.send_btn)
         
-        ttk.Label(right_sidebar, text="LIVE ACTIVITY", font=("Segoe UI", 10, "bold"), foreground="#bb86fc").pack(anchor="w", pady=(0, 15))
+        chat_main_layout.addSpacing(10)
+        chat_main_layout.addWidget(input_container)
         
-        activity_container = tk.Frame(right_sidebar, bg="#0f172a", highlightbackground="#1e293b", highlightthickness=1)
-        activity_container.pack(fill="both", expand=True)
+        chat_splitter.addWidget(chat_main)
         
-        self.activity_display = scrolledtext.ScrolledText(
-            activity_container, 
-            bg="#0f172a", fg="#03dac6", font=("Consolas", 10),
-            padx=15, pady=15, borderwidth=0, highlightthickness=0
-        )
-        self.activity_display.pack(fill="both", expand=True)
+        # Activity Sidebar (Upgraded)
+        self.activity_panel = LiveActivityPanel(self.controller)
+        self.activity_panel.setFixedWidth(350)
+        
+        chat_splitter.addWidget(self.activity_panel)
+        chat_layout.addWidget(chat_splitter)
+        
+        self.pages.addWidget(chat_page)
+        
+        # Other Pages
+        from gui.panels.agent_mode_panel import AgentModePanel
+        self.agent_panel = AgentModePanel(self.controller)
+        self.pages.addWidget(self.agent_panel)
+        
+        self.github_panel = GitHubPanel(self.controller)
+        self.pages.addWidget(self.github_panel)
+        
+        self.settings_panel = SettingsPanel(self.controller)
+        self.pages.addWidget(self.settings_panel)
+        
+        content_layout.addWidget(self.pages)
+        main_layout.addWidget(content_area)
 
-    def update_activity(self, text: str):
-        self.activity_display.insert(tk.END, f"> {text}\n")
-        self.activity_display.see(tk.END)
+    def create_nav_btn(self, icon_name, tooltip):
+        btn = QPushButton()
+        # GitHub icon is in brands (fa5b), others are in solid (fa5s)
+        icon_font = "fa5b" if icon_name == "github" else "fa5s"
+        btn.setIcon(qta.icon(f"{icon_font}.{icon_name}", color="#6B7280"))
+        btn.setIconSize(QSize(22, 22))
+        btn.setToolTip(tooltip)
+        btn.setFixedSize(55, 55)
+        btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        btn.setStyleSheet("background: transparent; border: none; border-radius: 15px;")
+        
+        # Connect to page switching
+        if tooltip == "Chat": btn.clicked.connect(lambda: self.switch_page(0, "Chat Interface", "Autonomous AI Interaction & Reasoning"))
+        elif tooltip == "Agent": btn.clicked.connect(lambda: self.switch_page(1, "Agent Mode", "Multi-Agent Coordination & Execution"))
+        elif tooltip == "GitHub": btn.clicked.connect(lambda: self.switch_page(2, "GitHub Integration", "Secure Repository Management & Deployment"))
+        elif tooltip == "Settings": btn.clicked.connect(lambda: self.switch_page(3, "Advanced Settings", "System Configuration & Personality Tuning"))
+        
+        return btn
 
-    def change_voice(self, lang_name: str):
-        self.voice_engine.set_language(lang_name)
-        self.update_activity(f"Voice changed to {lang_name}")
+    def switch_page(self, index, title, subtitle):
+        self.pages.setCurrentIndex(index)
+        self.page_title.setText(title)
+        self.page_subtitle.setText(subtitle)
+        
+        btns = [self.nav_chat, self.nav_agent, self.nav_github, self.nav_settings]
+        icon_names = ["comment", "robot", "github", "cog"]
+        for i, btn in enumerate(btns):
+            if i == index:
+                # GitHub icon is in brands (fa5b), others are in solid (fa5s)
+                icon_font = "fa5b" if icon_names[i] == "github" else "fa5s"
+                btn.setIcon(qta.icon(f"{icon_font}.{icon_names[i]}", color="#5850EC"))
+                btn.setStyleSheet("background-color: #1F1F23; border: none; border-radius: 15px;")
+            else:
+                # GitHub icon is in brands (fa5b), others are in solid (fa5s)
+                icon_font = "fa5b" if icon_names[i] == "github" else "fa5s"
+                btn.setIcon(qta.icon(f"{icon_font}.{icon_names[i]}", color="#6B7280"))
+                btn.setStyleSheet("background: transparent; border: none; border-radius: 15px;")
 
-    def check_for_resume(self):
-        resume_data = self.controller.state_manager.get_resume_data()
-        if resume_data:
-            msg = f"I have a pending task: '{resume_data['current_task']}'. Would you like me to resume?"
-            self.chat_display.insert(tk.END, f"🌙 LUNA: {msg}\n\n")
-            self.voice_engine.speak(msg)
+    def setup_signals(self):
+        self.signals.response_received.connect(self.update_chat)
+        self.signals.activity_logged.connect(self.update_activity)
+        self.signals.thought_logged.connect(self.update_thought)
 
-    def toggle_voice(self):
-        self.voice_engine.toggle(self.voice_var.get())
-        state = "Enabled" if self.voice_var.get() else "Disabled"
-        self.chat_display.insert(tk.END, f"SYSTEM: Voice mode {state}\n\n")
-        self.chat_display.see(tk.END)
+    def start_system_monitors(self):
+        self.stats_timer = QTimer()
+        self.stats_timer.timeout.connect(self.update_stats)
+        self.stats_timer.start(2000)
 
-    def update_permission(self, level):
-        # Update logic here if needed to sync with controller
-        self.chat_display.insert(tk.END, f"SYSTEM: Permission level changed to {level}\n\n")
-        self.chat_display.see(tk.END)
+    def update_stats(self):
+        cpu = psutil.cpu_percent()
+        ram = psutil.virtual_memory().percent
+        self.cpu_bar.setValue(int(cpu))
+        self.ram_bar.setValue(int(ram))
 
     def display_welcome_message(self):
-        welcome = self.controller.config.get('gui', {}).get('welcome_message', "Welcome back, IRFAN.")
-        self.chat_display.insert(tk.END, f"🌙 LUNA: {welcome}\n\n")
-        self.chat_display.see(tk.END)
-        # Voice welcome
-        self.voice_engine.speak(welcome)
+        welcome = self.controller.config.get('gui', {}).get('welcome_message', "System online. LUNA-ULTRA v2.6 ready for command, IRFAN.")
+        self.update_chat(welcome)
 
-    def send_message(self, event=None):
-        msg = self.input_field.get()
-        if msg:
-            self.chat_display.insert(tk.END, f"You: {msg}\n")
-            self.input_field.delete(0, tk.END)
-            self.chat_display.insert(tk.END, "LUNA: Thinking...\n")
-            self.chat_display.see(tk.END)
+    def send_message(self):
+        text = self.input_field.text().strip()
+        if text:
+            self.chat_display.append(f"<div style='margin: 10px 0;'><span style='color: #6B7280; font-weight: bold;'>USER:</span><br/>{text}</div>")
+            self.input_field.clear()
+            self.thought_display.clear()
+            self.update_activity(f"Analyzing intent: {text[:40]}...")
+            threading.Thread(target=self.process_input_async, args=(text,), daemon=True).start()
             
-            # Run processing in a separate thread to keep GUI responsive
-            threading.Thread(target=self.process_input_async, args=(msg,), daemon=True).start()
+            # Scroll to bottom
+            self.chat_display.moveCursor(QTextCursor.MoveOperation.End)
 
-    def process_input_async(self, msg):
+    def process_input_async(self, text):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
-        response_data = loop.run_until_complete(self.controller.orchestrator.handle_task(msg))
-        
-        # Extract the actual text response
-        if response_data.get("type") == "chat":
-            response = response_data.get("response", "No response received.")
-        else:
-            # For tool actions, summarize results
-            results = response_data.get("results", [])
-            if results:
-                last_result = results[-1].get("result", {})
-                if last_result.get("success"):
-                    response = f"Task completed successfully. Output: {last_result.get('output', 'Success')}"
-                else:
-                    response = f"Task failed: {last_result.get('error', 'Unknown error')}"
+        try:
+            response_data = loop.run_until_complete(self.controller.orchestrator.handle_task(text))
+            thought = response_data.get("thought", "Processing...")
+            self.signals.thought_logged.emit(thought)
+            
+            if response_data.get("type") == "chat":
+                response = response_data.get("response", "No response.")
             else:
-                response = "No actions were performed."
-                
-        self.root.after(0, self.update_chat, response)
+                results = response_data.get("results", [])
+                response = results[-1].get('result', {}).get('output', 'Task completed successfully.') if results else "Action performed."
+            
+            self.signals.response_received.emit(response)
+        except Exception as e:
+            self.signals.response_received.emit(f"System Error: {str(e)}")
 
     def update_chat(self, response):
-        # Remove the "Thinking..." line before adding response
-        self.chat_display.delete("end-2l", "end-1l")
-        self.chat_display.insert(tk.END, f"🌙 LUNA: {response}\n\n")
-        self.chat_display.see(tk.END)
-        # Speak the response
+        # Format response with simple HTML for better look
+        formatted = f"<div style='margin: 15px 0; padding: 12px; background-color: #141417; border-left: 4px solid #5850EC; border-radius: 4px;'>" \
+                    f"<span style='color: #5850EC; font-weight: bold;'>LUNA:</span><br/>{response}</div>"
+        self.chat_display.append(formatted)
+        self.chat_display.moveCursor(QTextCursor.MoveOperation.End)
         self.voice_engine.speak(response)
 
+    def update_activity(self, text):
+        """Update activity panel with text message."""
+        # If text is a string, convert it to a dict format for the activity panel
+        if isinstance(text, str):
+            activity_data = {
+                "agent": "SYSTEM",
+                "task": text,
+                "confidence": 0.95,
+                "risk_level": "LOW",
+                "status": "success"
+            }
+            self.activity_panel.update_activity(activity_data)
+        else:
+            # If it's already a dict, pass it directly
+            self.activity_panel.update_activity(text)
+
+    def update_thought(self, text):
+        self.thought_display.setText(text)
+
     def run(self):
-        self.root.mainloop()
+        self.show()
+        # Set initial active button
+        self.switch_page(0, "Chat Interface", "Autonomous AI Interaction & Reasoning")
