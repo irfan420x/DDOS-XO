@@ -1,4 +1,4 @@
-# Path: core/orchestrator.py
+# Path: core/orchestrator.py (FIXED VERSION)
 import logging
 import json
 import re
@@ -36,11 +36,35 @@ class Orchestrator:
         # 0. Get Memory Context
         memory_context = self.controller.memory_manager.get_context(user_input)
 
+        # ===== FIX 1: Quick check for simple math questions =====
+        # These should be handled as conversation, not as tasks
+        math_pattern = r'(what is|calculate|compute|solve|how much).*(\d+.*[\+\-\*\/\^].*\d+|square root|factorial|power|multiply|divide|add|subtract)'
+        if re.search(math_pattern, user_input.lower()):
+            logging.info("Orchestrator: Detected simple math question, treating as conversation")
+            chat_prompt = (
+                f"{self.controller.system_prompt}\n\n"
+                f"Context:\n{memory_context}\n\n"
+                f"User: {user_input}\n\n"
+                f"Provide a clear, direct answer to this mathematical question."
+            )
+            chat_response = await self.controller.llm_router.generate_response(chat_prompt)
+            return {"response": chat_response, "type": "chat", "thought": "Simple mathematical calculation"}
+
         # 1. Intent Classification
+        # ===== FIX 2: Improved intent classification prompt =====
         intent_prompt = (
             f"Context:\n{memory_context}\n\n"
-            f"Classify the user intent for: \"{user_input}\"\n"
-            f"Categories: GREETING, CONVERSATION, CODING, SYSTEM_ACTION, WEB_ACTION, AUTOMATION, ANALYSIS.\n"
+            f"Classify the user intent for: \"{user_input}\"\n\n"
+            f"Categories:\n"
+            f"- GREETING: Simple greetings like 'hello', 'hi', 'how are you'\n"
+            f"- CONVERSATION: General chat, questions needing direct answers, simple calculations, factual queries\n"
+            f"- CODING: Writing, debugging, or executing code files\n"
+            f"- SYSTEM_ACTION: File operations, system commands, installing software\n"
+            f"- WEB_ACTION: Web browsing, scraping, downloading from internet\n"
+            f"- AUTOMATION: Browser automation, keyboard/mouse control\n"
+            f"- ANALYSIS: Complex data analysis requiring tools, processing large datasets\n\n"
+            f"Important: Simple math questions, factual questions, and conversational queries should be CONVERSATION.\n"
+            f"Only use ANALYSIS for complex data processing tasks.\n\n"
             f"Respond in format: INTENT: <CATEGORY> | THOUGHT: <REASONING>"
         )
         reasoning_response = await self.controller.llm_router.generate_response(intent_prompt)
@@ -60,7 +84,11 @@ class Orchestrator:
         # 2. Routing Logic
         action_intents = ["CODING", "SYSTEM_ACTION", "WEB_ACTION", "AUTOMATION", "ANALYSIS"]
         if intent not in action_intents:
-            chat_prompt = f"Context:\n{memory_context}\n\nUser: {user_input}"
+            chat_prompt = (
+                f"{self.controller.system_prompt}\n\n"
+                f"Context:\n{memory_context}\n\n"
+                f"User: {user_input}"
+            )
             chat_response = await self.controller.llm_router.generate_response(chat_prompt)
             return {"response": chat_response, "type": "chat", "thought": thought}
 

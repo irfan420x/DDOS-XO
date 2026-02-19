@@ -1,4 +1,4 @@
-# Path: core/controller.py
+# Path: core/controller.py (FIXED VERSION)
 import os
 import yaml
 import logging
@@ -145,11 +145,33 @@ class LunaController:
                 await self.resume_engine.handle_token_limit_error(response)
                 return "I've hit a token limit, but I've saved my progress. Type 'resume' to continue from where I left off."
         else:
-            # Handle tool execution results
+            # ===== FIX: Handle tool execution results properly =====
             results = response_data.get("results", [])
             if results:
                 last_res = results[-1].get("result", {})
-                response = f"Task completed: {last_res.get('output', 'Success')}"
+                output = last_res.get('output', '')
+                
+                # If there's meaningful output, return it directly
+                if output and output != 'Success':
+                    response = output
+                else:
+                    # If no output, try to get the message or error
+                    message = last_res.get('message', '')
+                    error = last_res.get('error', '')
+                    
+                    if error:
+                        response = f"Task encountered an issue: {error}"
+                    elif message:
+                        response = f"Task completed: {message}"
+                    else:
+                        # Last resort: Ask LLM to summarize what was done
+                        summary_prompt = (
+                            f"User asked: {user_input}\n"
+                            f"The system executed these steps: {response_data.get('plan', [])}\n"
+                            f"Results: {results}\n"
+                            f"Provide a natural, conversational summary of what was accomplished."
+                        )
+                        response = await self.llm_router.generate_response(summary_prompt)
             else:
                 response = "Action performed."
         
