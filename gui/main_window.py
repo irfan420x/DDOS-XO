@@ -71,10 +71,12 @@ class LunaGUI(QMainWindow):
 
         # Nav Buttons
         self.nav_chat = self.create_nav_btn("comment", "Chat")
+        self.nav_agent = self.create_nav_btn("robot", "Agent")
         self.nav_github = self.create_nav_btn("github", "GitHub")
         self.nav_settings = self.create_nav_btn("cog", "Settings")
         
         sidebar_layout.addWidget(self.nav_chat)
+        sidebar_layout.addWidget(self.nav_agent)
         sidebar_layout.addWidget(self.nav_github)
         sidebar_layout.addWidget(self.nav_settings)
         
@@ -175,11 +177,16 @@ class LunaGUI(QMainWindow):
         
         self.pages.addWidget(chat_page)
         
-        # Page 2: GitHub
+        # Page 2: Agent Mode
+        from gui.panels.agent_mode_panel import AgentModePanel
+        self.agent_panel = AgentModePanel(self.controller)
+        self.pages.addWidget(self.agent_panel)
+        
+        # Page 3: GitHub
         self.github_panel = GitHubPanel(self.controller)
         self.pages.addWidget(self.github_panel)
         
-        # Page 3: Settings
+        # Page 4: Settings
         self.settings_panel = SettingsPanel(self.controller)
         self.pages.addWidget(self.settings_panel)
         
@@ -197,8 +204,9 @@ class LunaGUI(QMainWindow):
         
         # Connect to page switching
         if tooltip == "Chat": btn.clicked.connect(lambda: self.switch_page(0, "Chat Interface"))
-        elif tooltip == "GitHub": btn.clicked.connect(lambda: self.switch_page(1, "GitHub Integration"))
-        elif tooltip == "Settings": btn.clicked.connect(lambda: self.switch_page(2, "Advanced Settings"))
+        elif tooltip == "Agent": btn.clicked.connect(lambda: self.switch_page(1, "Agent Mode"))
+        elif tooltip == "GitHub": btn.clicked.connect(lambda: self.switch_page(2, "GitHub Integration"))
+        elif tooltip == "Settings": btn.clicked.connect(lambda: self.switch_page(3, "Advanced Settings"))
         
         return btn
 
@@ -206,11 +214,11 @@ class LunaGUI(QMainWindow):
         self.pages.setCurrentIndex(index)
         self.page_title.setText(title)
         # Update icon colors
-        btns = [self.nav_chat, self.nav_github, self.nav_settings]
+        btns = [self.nav_chat, self.nav_agent, self.nav_github, self.nav_settings]
         for i, btn in enumerate(btns):
             color = "#4F46E5" if i == index else "#9CA3AF"
             # Re-set icon with new color (simplified)
-            icon_names = ["comment", "github", "cog"]
+            icon_names = ["comment", "robot", "github", "cog"]
             btn.setIcon(qta.icon(f"fa5s.{icon_names[i]}", color=color))
 
     def setup_signals(self):
