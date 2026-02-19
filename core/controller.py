@@ -4,6 +4,7 @@ import yaml
 import logging
 import asyncio
 import time
+import re
 from typing import Dict, Any
 
 from llm.router import LLMRouter
@@ -212,11 +213,16 @@ class LunaController:
                     is_success = True
 
         # Telegram Notification on Success (for general tasks)
-        if is_success and self.telegram and self.config.get("automation", {}).get("telegram", {}).get("enabled"):
+        # Ensure telegram is enabled in config
+        telegram_enabled = self.config.get("automation", {}).get("telegram", {}).get("enabled", True)
+        if is_success and self.telegram and telegram_enabled:
             if not any(word in user_input.lower() for word in ["shutdown", "restart", "power off"]):
                 try:
-                    notify_msg = f"✅ Task Successful!\n\nTask: {user_input[:100]}...\n\nResult: {response[:200]}..."
+                    # Clean up response for notification (remove markdown blocks for better readability)
+                    clean_response = re.sub(r'```.*?```', '[Code Block]', response, flags=re.DOTALL)
+                    notify_msg = f"✅ Task Successful!\n\nTask: {user_input[:100]}...\n\nResult: {clean_response[:300]}..."
                     asyncio.create_task(self.telegram.send_notification(notify_msg))
+                    logging.info("LunaController: Success notification queued for Telegram.")
                 except Exception as e:
                     logging.error(f"LunaController: Failed to send Telegram notification: {e}")
         
