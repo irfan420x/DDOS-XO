@@ -12,7 +12,7 @@ class StartupBanner:
         🌙 LUNA-ULTRA Activated
         -----------------------------------
         LLM: {config['llm']['default_provider'].upper()} API
-        Permission: {config['permissions']['level']}
+        Permission: {config.get('permissions', {}).get('level') or config.get('security', {}).get('level', 'SAFE')}
         Memory: Restored (3 days)
         User: {config['user']['name']}
         -----------------------------------

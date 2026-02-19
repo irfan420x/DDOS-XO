@@ -25,11 +25,17 @@ class LLMRouter:
         
         # Initialize Providers
         api_keys = config.get('api_keys', {})
+        # Fallback to direct keys in config if api_keys dict is missing
+        deepseek_key = api_keys.get('deepseek') or config.get('api_key')
+        openai_key = api_keys.get('openai')
+        anthropic_key = api_keys.get('anthropic')
+        gemini_key = api_keys.get('gemini')
+        
         self.providers = {
-            'deepseek': DeepSeekProvider(api_keys.get('deepseek')),
-            'openai': OpenAIProvider(api_keys.get('openai')),
-            'anthropic': AnthropicProvider(api_keys.get('anthropic')),
-            'gemini': GeminiProvider(api_keys.get('gemini')),
+            'deepseek': DeepSeekProvider(deepseek_key),
+            'openai': OpenAIProvider(openai_key),
+            'anthropic': AnthropicProvider(anthropic_key),
+            'gemini': GeminiProvider(gemini_key),
             'local': LocalProvider(config.get('local', {}))
         }
 

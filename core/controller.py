@@ -27,7 +27,7 @@ class LunaController:
         self.llm_router = LLMRouter(self.config.get("llm", {}))
         from core.personality_engine import PersonalityEngine
         self.personality_engine = PersonalityEngine(self.config)
-        self.permission_engine = PermissionEngine(self.config.get("security", {}))
+        self.permission_engine = PermissionEngine(self.config)
         self.sandbox_executor = SandboxExecutor(self.config.get("security", {}), self.permission_engine)
         self.memory_manager = MemoryManager(self.config.get("features", {}).get("memory", {}))
         self.state_manager = StateManager()

@@ -11,8 +11,8 @@ class SecuritySentinel:
     """
     def __init__(self, controller: Any):
         self.controller = controller
-        self.config = controller.config.get("security", {})
-        self.enabled = self.config.get("sentinel_enabled", True)
+        self.config = controller.config.get("security", {}) if controller.config.get("security") else {}
+        self.enabled = self.config.get("sentinel_enabled", True) if self.config else True
         self.interval = self.config.get("sentinel_interval", 30) # Seconds
         self.known_ports: Set[int] = set()
         self.running = False
@@ -108,5 +108,5 @@ class SecuritySentinel:
         if hasattr(self.controller, 'gui') and self.controller.gui:
             self.controller.gui.update_activity(f"🛡️ {message}")
         
-        if self.controller.telegram.enabled:
+        if self.controller.telegram and self.controller.telegram.enabled:
             await self.controller.telegram.send_notification(message)
