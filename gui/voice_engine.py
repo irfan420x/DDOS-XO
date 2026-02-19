@@ -9,11 +9,12 @@ import soundfile as sf
 import speech_recognition as sr
 from gtts import gTTS
 import pygame
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Any
 
 class VoiceEngine:
     """
-    LUNA-ULTRA Voice Engine: Handles natural TTS and STT with wake word detection.
+    LUNA-ULTRA Voice Engine v2.0: Voice-First Intelligent Interaction.
+    Handles natural TTS and STT with task-aware awareness.
     """
     def __init__(self, config: dict):
         self.config = config
@@ -42,10 +43,44 @@ class VoiceEngine:
         if self.enabled:
             self.start_listening_thread()
 
-    def speak(self, text: str):
+    def speak(self, text: str, task_context: Optional[Dict[str, Any]] = None):
+        """
+        Speaks the given text. If task_context is provided, it can adjust the tone.
+        """
         if not self.enabled or not text:
             return
+            
+        # Task-aware voice enhancement
+        if task_context:
+            status = task_context.get("status", "").lower()
+            if status == "success":
+                text = f"Great news! {text}"
+            elif status == "failed":
+                text = f"I'm sorry, but I encountered an issue. {text}"
+        
         threading.Thread(target=self._speak_task, args=(text,), daemon=True).start()
+
+    def announce_task_start(self, task_name: str):
+        """Announces the start of a task in a human-like way."""
+        phrases = [
+            f"Alright, I'm starting the {task_name} now.",
+            f"Got it. I'll begin working on {task_name} immediately.",
+            f"I understand. Let me handle the {task_name} for you."
+        ]
+        import random
+        self.speak(random.choice(phrases))
+
+    def announce_task_status(self, task_name: str, status: str, reason: str = ""):
+        """Announces the completion status of a task."""
+        if status.lower() == "success":
+            self.speak(f"The {task_name} has been completed successfully.")
+        elif status.lower() == "failed":
+            msg = f"The {task_name} failed."
+            if reason:
+                msg += f" The reason was: {reason}"
+            self.speak(msg)
+        elif status.lower() == "partial":
+            self.speak(f"The {task_name} was partially completed.")
 
     def _speak_task(self, text: str):
         self.is_speaking = True
@@ -93,7 +128,6 @@ class VoiceEngine:
                 
                 if self.wake_word in text:
                     logging.info("VoiceEngine: Wake word detected!")
-                    # Trigger callback or event in GUI
                     if hasattr(self, 'on_wake_word'):
                         self.on_wake_word()
                         

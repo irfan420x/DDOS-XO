@@ -18,6 +18,7 @@ import qtawesome as qta
 
 from gui.themes.manus_theme import MANUS_STYLE
 from gui.panels.manus_panels import GitHubPanel, SettingsPanel
+from gui.panels.activity_panel import LiveActivityPanel
 from gui.voice_engine import VoiceEngine
 
 class WorkerSignals(QObject):
@@ -216,24 +217,11 @@ class LunaGUI(QMainWindow):
         
         chat_splitter.addWidget(chat_main)
         
-        # Activity Sidebar
-        activity_side = QFrame()
-        activity_side.setObjectName("Panel")
-        activity_side.setFixedWidth(320)
-        activity_layout = QVBoxLayout(activity_side)
-        activity_layout.setContentsMargins(20, 20, 20, 20)
+        # Activity Sidebar (Upgraded)
+        self.activity_panel = LiveActivityPanel(self.controller)
+        self.activity_panel.setFixedWidth(350)
         
-        act_header = QHBoxLayout()
-        act_header.addWidget(QLabel("LIVE ACTIVITY", objectName="SubHeader"))
-        act_header.addStretch()
-        activity_layout.addLayout(act_header)
-        
-        self.activity_log = QTextEdit()
-        self.activity_log.setReadOnly(True)
-        self.activity_log.setStyleSheet("font-family: 'Consolas'; font-size: 11px; color: #10B981; background: transparent; border: none;")
-        activity_layout.addWidget(self.activity_log)
-        
-        chat_splitter.addWidget(activity_side)
+        chat_splitter.addWidget(self.activity_panel)
         chat_layout.addWidget(chat_splitter)
         
         self.pages.addWidget(chat_page)

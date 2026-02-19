@@ -3,6 +3,7 @@ import os
 import yaml
 import logging
 import asyncio
+import time
 from typing import Dict, Any
 
 from llm.router import LLMRouter
@@ -43,6 +44,11 @@ class LunaController:
         self.thought_loop = ThoughtLoop(self)
         self.system_health = SystemHealth(self)
         self.skill_acquisition = SkillAcquisition(self)
+        from core.execution_watchdog import ExecutionWatchdog
+        from core.error_intelligence import ErrorIntelligence
+        self.watchdog = ExecutionWatchdog(self)
+        self.watchdog.start()
+        self.error_intelligence = ErrorIntelligence(self)
         
         # GitHub & Validation (v2.4)
         from core.github_manager import GitHubManager
@@ -108,6 +114,7 @@ class LunaController:
 
     async def start_services(self):
         """Starts background services safely."""
+        self.watchdog.start()
         if self.telegram and self.config.get("automation", {}).get("telegram", {}).get("enabled"):
             asyncio.create_task(self.telegram.run_bot())
             # Notification is now handled in __init__ for immediate feedback
@@ -144,7 +151,12 @@ class LunaController:
             return f"Resumed: {resume_result.get('message', 'Task in progress...')}"
 
         # 2. Normal Task Handling
+        # Register task with watchdog
+        task_id = f"task_{int(time.time())}"
+        self.watchdog.register_task(task_id, user_input)
+        
         response_data = await self.orchestrator.handle_task(user_input)
+        self.watchdog.unregister_task(task_id)
         
         is_success = False
         if response_data.get("type") == "chat":
@@ -171,7 +183,13 @@ class LunaController:
                     error = last_res.get('error', '')
                     
                     if error:
-                        response = f"Task encountered an issue: {error}"
+                        # Error Intelligence Upgrade
+                        analysis_data = await self.error_intelligence.analyze_failure(user_input, error, results)
+                        response = f"I encountered an issue: {error}\n\n### Root Cause Analysis\n{analysis_data['analysis']}"
+                        
+                        # Voice Announcement for failure
+                        if hasattr(self, 'gui') and self.gui and self.gui.voice_engine.enabled:
+                            self.gui.voice_engine.announce_task_status(user_input, "failed", analysis_data['root_cause'])
                     elif message:
                         response = f"Task completed: {message}"
                     else:

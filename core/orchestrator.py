@@ -130,8 +130,30 @@ class Orchestrator:
                     if hasattr(self.controller, 'master_orchestrator'):
                         self.controller.master_orchestrator.state_manager.update_current_step(idx)
                     
+                    # Structured Transparency Upgrade
+                    if hasattr(self.controller, 'gui') and self.controller.gui:
+                        self.controller.gui.activity_panel.update_activity({
+                            "agent": step.get("agent"),
+                            "task": f"{step.get('action')} {step.get('params', {})}",
+                            "confidence": 0.95, # Simulated for now
+                            "risk_level": "LOW",
+                            "status": "executing"
+                        })
+                        if self.controller.gui.voice_engine.enabled:
+                            self.controller.gui.voice_engine.announce_task_start(f"{step.get('agent')} {step.get('action')}")
+
                     res = await agent.execute(step.get("action"), step.get("params", {}))
                     results.append({"step": step, "result": res})
+                    
+                    # Update GUI with result
+                    if hasattr(self.controller, 'gui') and self.controller.gui:
+                        self.controller.gui.activity_panel.update_activity({
+                            "agent": step.get("agent"),
+                            "task": f"{step.get('action')} completed",
+                            "confidence": 0.98,
+                            "risk_level": "LOW",
+                            "status": "success" if res.get("success") else "failed"
+                        })
                     
                     if hasattr(self.controller, 'master_orchestrator'):
                         self.controller.master_orchestrator.state_manager.mark_step_complete(idx, res.get("success", False), res)
