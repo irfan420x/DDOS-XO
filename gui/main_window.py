@@ -242,7 +242,9 @@ class LunaGUI(QMainWindow):
 
     def create_nav_btn(self, icon_name, tooltip):
         btn = QPushButton()
-        btn.setIcon(qta.icon(f"fa5s.{icon_name}", color="#6B7280"))
+        # GitHub icon is in brands (fa5b), others are in solid (fa5s)
+        icon_font = "fa5b" if icon_name == "github" else "fa5s"
+        btn.setIcon(qta.icon(f"{icon_font}.{icon_name}", color="#6B7280"))
         btn.setIconSize(QSize(22, 22))
         btn.setToolTip(tooltip)
         btn.setFixedSize(55, 55)
@@ -266,10 +268,14 @@ class LunaGUI(QMainWindow):
         icon_names = ["comment", "robot", "github", "cog"]
         for i, btn in enumerate(btns):
             if i == index:
-                btn.setIcon(qta.icon(f"fa5s.{icon_names[i]}", color="#5850EC"))
+                # GitHub icon is in brands (fa5b), others are in solid (fa5s)
+                icon_font = "fa5b" if icon_names[i] == "github" else "fa5s"
+                btn.setIcon(qta.icon(f"{icon_font}.{icon_names[i]}", color="#5850EC"))
                 btn.setStyleSheet("background-color: #1F1F23; border: none; border-radius: 15px;")
             else:
-                btn.setIcon(qta.icon(f"fa5s.{icon_names[i]}", color="#6B7280"))
+                # GitHub icon is in brands (fa5b), others are in solid (fa5s)
+                icon_font = "fa5b" if icon_names[i] == "github" else "fa5s"
+                btn.setIcon(qta.icon(f"{icon_font}.{icon_names[i]}", color="#6B7280"))
                 btn.setStyleSheet("background: transparent; border: none; border-radius: 15px;")
 
     def setup_signals(self):
@@ -331,8 +337,20 @@ class LunaGUI(QMainWindow):
         self.voice_engine.speak(response)
 
     def update_activity(self, text):
-        self.activity_log.append(f"<span style='color: #10B981;'>[SYSTEM]</span> {text}")
-        self.activity_log.moveCursor(QTextCursor.MoveOperation.End)
+        """Update activity panel with text message."""
+        # If text is a string, convert it to a dict format for the activity panel
+        if isinstance(text, str):
+            activity_data = {
+                "agent": "SYSTEM",
+                "task": text,
+                "confidence": 0.95,
+                "risk_level": "LOW",
+                "status": "success"
+            }
+            self.activity_panel.update_activity(activity_data)
+        else:
+            # If it's already a dict, pass it directly
+            self.activity_panel.update_activity(text)
 
     def update_thought(self, text):
         self.thought_display.setText(text)
